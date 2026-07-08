@@ -1,0 +1,6 @@
+{
+  "name": "Mayra AI Assistant",
+  "description": "A real-time, voice-to-voice sassy AI assistant with a flirty and smart personality, powered by Gemini Live API.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

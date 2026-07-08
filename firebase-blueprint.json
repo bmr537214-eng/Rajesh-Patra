@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile, configuration, and offline-synced state.",
+      "type": "object",
+      "properties": {
+        "personality": {
+          "type": "string",
+          "description": "The chosen sassy personality profile of Mayra (sarcastic, sweetheart, fiesty)."
+        },
+        "voiceApps": {
+          "type": "array",
+          "description": "Custom registered command launcher applications."
+        },
+        "chatHistory": {
+          "type": "array",
+          "description": "Recent conversations in chat and voice."
+        }
+      },
+      "required": ["personality"]
+    },
+    "Memory": {
+      "title": "Memory",
+      "description": "Long-term key-value fact stored in Mayra's Power Memory Card.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the memory."
+        },
+        "fact": {
+          "type": "string",
+          "description": "The specific statement or fact remembered about the user."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the memory (e.g., personal, preferences, commands)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the memory was registered."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user this memory belongs to."
+        }
+      },
+      "required": ["id", "fact", "userId"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Primary user configuration documents."
+    },
+    "users/{userId}/memories/{memoryId}": {
+      "schema": "Memory",
+      "description": "Individual long-term facts stored in the Power Memory Card."
+    }
+  }
+}
