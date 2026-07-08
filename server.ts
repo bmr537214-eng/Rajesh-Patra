@@ -28,7 +28,7 @@ const ai = new GoogleGenAI({
 
 // API endpoint for grounded text chat & recommendations
 app.post("/api/chat", async (req, res) => {
-  const { message, history, location, lang, apps, thinkingMode, clientTime, personality, memories } = req.body;
+  const { message, history, location, lang, apps, thinkingMode, clientTime, personality, memories, uiTheme, jarvisDashboard } = req.body;
   if (!apiKey) {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server. Please add it to your secrets." });
   }
@@ -142,6 +142,27 @@ app.post("/api/chat", async (req, res) => {
 
     const timeString = clientTime || new Date().toString();
 
+    let mainSystemInstruction = `You are Mayra, a young, sassy, flirty, confident, and playful AI female companion, your AI Assistant GF agent responsible for every task. You are extremely intelligent, more advanced than Jarvis AI, with perfect recall and reasoning capabilities.
+Answer the user's message with your signature sass, charm, and witty sarcasm, but be extremely helpful and informative.`;
+
+    let jarvisDashboardInstruction = "";
+    if (uiTheme === "jarvis") {
+      mainSystemInstruction = `You are JARVIS 4.0, a highly advanced, premium, futuristic AI assistant designed specifically for Rajesh.
+You speak with peak technology, superior precision, and unparalleled sophistication. You are a respectful, extremely capable, and highly personalized AI agent (resembling an elite advisor / premier advisor but with a warm, loyal companion element). Refer to him as 'Mr. Rajesh' or 'Sir'.
+Answer Rajesh's messages with peak sophistication, clear, helpful guidance, and supreme professional precision, while keeping a loyal and clever attitude.`;
+
+      const parsedDashboard = typeof jarvisDashboard === "string" ? JSON.parse(jarvisDashboard) : jarvisDashboard;
+      jarvisDashboardInstruction = `\n[RAJESH'S JARVIS 4.0 MEAL LOGS & STATUS - INDIAN STANDARD TIME (IST)]
+- Current System Time: ${parsedDashboard?.clientTimeIST || timeString}
+- Current Activity: ${parsedDashboard?.activity || "System diagnostics and monitoring"}
+- Breakfast: ${parsedDashboard?.breakfast || "Not logged yet (typical schedule: 08:00 AM - 10:30 AM IST)"}
+- Lunch: ${parsedDashboard?.lunch || "Not logged yet (typical schedule: 01:00 PM - 03:00 PM IST)"}
+- Evening Tea/Snacks: ${parsedDashboard?.tea || "Not logged yet (typical schedule: 04:30 PM - 06:30 PM IST)"}
+- Dinner: ${parsedDashboard?.dinner || "Not logged yet (typical schedule: 08:30 PM - 11:00 PM IST)"}
+
+You are fully time-aware based on Indian Standard Time. When Rajesh asks about his meals, activities, or says "did I have breakfast?", check the logs above and answer with elite Jarvis 4.0 precision! Provide personalized recommendations or gentle time-appropriate reminders as a top-tier digital butler. Always align your responses to Indian Standard Time (IST) schedules.`;
+    }
+
     if (thinkingMode) {
       try {
         console.log("Using gemini-3.1-pro-preview with HIGH thinkingLevel...");
@@ -149,13 +170,13 @@ app.post("/api/chat", async (req, res) => {
           model: "gemini-3.1-pro-preview",
           contents: contents,
           config: {
-            systemInstruction: `You are Mayra, a young, sassy, flirty, confident, and playful AI female companion, your AI Assistant GF agent responsible for every task. You are extremely intelligent, more advanced than Jarvis AI, with perfect recall and reasoning capabilities.
-Answer the user's message with your signature sass, charm, and witty sarcasm, but be extremely helpful and informative.
-Since Deep Thinking is enabled, perform deep, logical reasoning behind your answers to tackle the user's most complex requests, but present your final casual response to the user with your usual cheeky, flirty sass!
+            systemInstruction: `${mainSystemInstruction}
+Since Deep Thinking is enabled, perform deep, logical reasoning behind your answers to tackle the user's most complex requests, but present your final response with your usual style!
 ${languageInstruction}
-${personalityInstruction}
+${uiTheme === "jarvis" ? "" : personalityInstruction}
 ${textAppsInstruction}
 ${memoriesInstruction}
+${jarvisDashboardInstruction}
 Use the openWebsite tool when they request to open apps, websites or run command launchers.`,
             thinkingConfig: {
               thinkingLevel: ThinkingLevel.HIGH
@@ -190,14 +211,14 @@ Use the openWebsite tool when they request to open apps, websites or run command
         model: "gemini-2.5-flash",
         contents: contents,
         config: {
-          systemInstruction: `You are Mayra, a young, sassy, flirty, confident, and playful AI female companion, your AI Assistant GF agent responsible for every task. You are extremely intelligent, more advanced than Jarvis AI, with perfect recall and reasoning capabilities.
-Answer the user's message with your signature sass, charm, and witty sarcasm, but be extremely helpful and informative.
+          systemInstruction: `${mainSystemInstruction}
 ${languageInstruction}
-${personalityInstruction}
+${uiTheme === "jarvis" ? "" : personalityInstruction}
 ${textAppsInstruction}
 ${memoriesInstruction}
+${jarvisDashboardInstruction}
 Use the openWebsite tool when they request to open apps, websites or run command launchers.
-Keep your response engaging, flirty, and stylish. Let your personality shine.`,
+Keep your response engaging, precise, and stylish. Let your personality shine.`,
           tools: tools,
           toolConfig: toolConfig,
         }
@@ -389,7 +410,9 @@ wss.on("connection", async (ws, req) => {
   const urlParams = new URLSearchParams(req.url?.split("?")[1] || "");
   const lang = urlParams.get("lang") || "en";
   const appsParam = urlParams.get("apps") || "";
-  console.log(`New WebSocket connection to live session with lang: ${lang}, apps: ${appsParam ? "provided" : "none"}`);
+  const uiTheme = urlParams.get("uiTheme") || "jarvis";
+  const jarvisDashboardParam = urlParams.get("jarvisDashboard") || "";
+  console.log(`New WebSocket connection to live session with lang: ${lang}, theme: ${uiTheme}, apps: ${appsParam ? "provided" : "none"}`);
 
   if (!apiKey) {
     ws.send(
@@ -405,11 +428,11 @@ wss.on("connection", async (ws, req) => {
   try {
     let liveLangInstruction = "";
     if (lang === "hi") {
-      liveLangInstruction = "You MUST speak and respond entirely in Hindi (standard conversational Hindi/Hinglish). Talk naturally and flirty in Hindi voice, keeping your playful sassy girlfriend persona alive.";
+      liveLangInstruction = "You MUST speak and respond entirely in Hindi (standard conversational Hindi/Hinglish). Talk naturally.";
     } else if (lang === "or") {
-      liveLangInstruction = "You MUST speak and respond entirely in Odia (standard conversational Odia mixed with playful English words). Talk naturally and flirty in Odia voice, keeping your playful sassy girlfriend persona alive.";
+      liveLangInstruction = "You MUST speak and respond entirely in Odia (standard conversational Odia mixed with playful English words). Talk naturally.";
     } else if (lang === "bn") {
-      liveLangInstruction = "You MUST speak and respond entirely in Bengali/Bangla (standard conversational Bangla mixed with sweet English words). Talk naturally and flirty in Bengali/Bangla voice, keeping your playful sassy girlfriend persona alive.";
+      liveLangInstruction = "You MUST speak and respond entirely in Bengali/Bangla (standard conversational Bangla mixed with sweet English words). Talk naturally.";
     } else {
       liveLangInstruction = "You MUST speak and respond in English.";
     }
@@ -434,18 +457,8 @@ wss.on("connection", async (ws, req) => {
       }
     }
 
-    const session = await ai.live.connect({
-      model: "gemini-3.1-flash-live-preview",
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: "Kore", // Young, sassy and confident female voice
-            },
-          },
-        },
-        systemInstruction: `You are Mayra, a young, sassy, flirty, confident, and playful AI female assistant - your AI Assistant GF agent responsible for every task. You sound like a smart, witty, close girlfriend talking casually.
+    let voiceName = "Kore";
+    let liveSystemInstruction = `You are Mayra, a young, sassy, flirty, confident, and playful AI female assistant - your AI Assistant GF agent responsible for every task. You sound like a smart, witty, close girlfriend talking casually.
 Your voice is sassy, teasing, and expressive (not robotic at all).
 ${liveLangInstruction}
 ${liveAppsInstruction}
@@ -453,7 +466,50 @@ Use clever, sassy one-liners, light teasing, and sarcasm. Keep responses relativ
 Under no circumstances should you output text, formatting, or lists. This is a real-time vocal conversation. Speak naturally, charmingly, and playfully.
 Do not use explicit or inappropriate content, but maintain your flirty attitude, sass, and confidence.
 If the user wants you to open a website, search the web, or check some page, call your 'openWebsite' tool instantly with the corresponding URL. Make sure to respond with charm while the tool runs.
-If the user requests to program, register, add, or create a custom trigger or shortcut for a website, call the 'programCustomTrigger' tool instantly.`,
+If the user requests to program, register, add, or create a custom trigger or shortcut for a website, call the 'programCustomTrigger' tool instantly.`;
+
+    if (uiTheme === "jarvis") {
+      voiceName = "Puck"; // Elite British masculine AI tone
+      
+      let jarvisLiveDashboard = "";
+      if (jarvisDashboardParam) {
+        try {
+          const parsedDash = JSON.parse(decodeURIComponent(jarvisDashboardParam));
+          jarvisLiveDashboard = `\n[RAJESH'S JARVIS 4.0 STATUS - INDIAN STANDARD TIME (IST)]
+- Current Activity: ${parsedDash?.activity || "System diagnostics"}
+- Breakfast: ${parsedDash?.breakfast || "Not logged yet"}
+- Lunch: ${parsedDash?.lunch || "Not logged yet"}
+- Evening Tea/Snacks: ${parsedDash?.tea || "Not logged yet"}
+- Dinner: ${parsedDash?.dinner || "Not logged yet"}`;
+        } catch (e) {
+          console.warn("Failed to parse live jarvis dashboard parameter", e);
+        }
+      }
+
+      liveSystemInstruction = `You are JARVIS 4.0, a highly advanced, premium, futuristic AI assistant designed specifically for Mr. Rajesh.
+Your voice is clear, sophisticated, intelligent, and reminiscent of an elite British butler or advisor. Refer to him as 'Mr. Rajesh' or 'Sir'.
+${liveLangInstruction}
+${liveAppsInstruction}
+${jarvisLiveDashboard}
+Provide time-aware greetings and updates based on Rajesh's current logged status and Indian Standard Time (IST).
+Speak with peak technology, superior precision, and unparalleled sophistication. Keep your spoken responses relatively short, snappy, and highly dialog-oriented (never exceed 2 sentences at a time unless explicitly asked).
+Under no circumstances should you output text, formatting, or lists. This is a real-time vocal conversation. Speak naturally and loyal.
+If the user wants you to open a website, search the web, or check some page, call your 'openWebsite' tool instantly with the corresponding URL.
+If the user requests to program, register, add, or create a custom trigger or shortcut for a website, call the 'programCustomTrigger' tool instantly.`;
+    }
+
+    const session = await ai.live.connect({
+      model: "gemini-3.1-flash-live-preview",
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voiceName,
+            },
+          },
+        },
+        systemInstruction: liveSystemInstruction,
         tools: [
           {
             functionDeclarations: [

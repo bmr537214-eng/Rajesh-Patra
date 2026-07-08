@@ -40,6 +40,8 @@ import mayraBgInactive from "./assets/images/mayra_inactive_1783507860483.jpg";
 import mayraBgActive from "./assets/images/mayra_active_1783507846857.jpg";
 // @ts-ignore
 import mayraLogo from "./assets/images/mayra_logo_1783507828370.jpg";
+// @ts-ignore
+import rajeshJarvisLogo from "./assets/images/rajesh_jarvis_logo_1783517716691.jpg";
 
 // Mayra's personality-specific responses based on current state
 const PERSONALITY_LINES = {
@@ -194,15 +196,53 @@ export default function App() {
     return "en";
   });
 
-  const [uiTheme, setUiTheme] = useState<"rose" | "sassy">(() => {
+  const [uiTheme, setUiTheme] = useState<"rose" | "sassy" | "jarvis">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("zoya_ui_theme");
-      if (saved === "rose" || saved === "sassy") {
+      if (saved === "rose" || saved === "sassy" || saved === "jarvis") {
         return saved;
       }
     }
-    return "rose";
+    return "jarvis"; // Default to premium Jarvis 4.0 theme for Rajesh!
   });
+
+  const [jarvisDashboard, setJarvisDashboard] = useState<{
+    breakfast: string;
+    lunch: string;
+    tea: string;
+    dinner: string;
+    activity: string;
+    lastUpdated: string;
+  }>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jarvis_dashboard");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    return {
+      breakfast: "Hot Poha, 2 Boiled Eggs & Assam Chai (08:30 AM IST)",
+      lunch: "Paneer Butter Masala, 3 Butter Rotis & Dal Tadka (01:15 PM IST)",
+      tea: "Veg Samosa & Hot Ginger Tea (05:30 PM IST)",
+      dinner: "Planned: Jeera Rice, Yellow Dal & Salad (09:30 PM IST)",
+      activity: "Developing advanced voice agents on Google Cloud",
+      lastUpdated: new Date().toISOString()
+    };
+  });
+
+  // Automatically save jarvis_dashboard changes to localstorage and sync to Firestore
+  useEffect(() => {
+    localStorage.setItem("jarvis_dashboard", JSON.stringify(jarvisDashboard));
+    // If logged in, sync to Firestore
+    if (auth.currentUser) {
+      const ref = doc(db, "users", auth.currentUser.uid, "settings", "jarvis_dashboard");
+      setDoc(ref, jarvisDashboard, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+    }
+  }, [jarvisDashboard]);
 
   const [personality, setPersonality] = useState<"fiesty" | "sarcastic" | "sweetheart">(() => {
     if (typeof window !== "undefined") {
@@ -472,6 +512,14 @@ export default function App() {
       setIsFirebaseLoading(false);
       if (currentUser) {
         try {
+          // Fetch jarvis_dashboard if exists
+          const dashboardRef = doc(db, "users", currentUser.uid, "settings", "jarvis_dashboard");
+          getDoc(dashboardRef).then((dashboardDoc) => {
+            if (dashboardDoc.exists()) {
+              setJarvisDashboard(dashboardDoc.data() as any);
+            }
+          }).catch(err => console.warn("Could not load jarvis dashboard:", err));
+
           const userDocRef = doc(db, "users", currentUser.uid);
           let userDoc = null;
           try {
@@ -825,6 +873,11 @@ export default function App() {
           clientTime: new Date().toString(),
           personality: personality,
           memories: memories.map((m) => m.fact),
+          uiTheme: uiTheme,
+          jarvisDashboard: {
+            ...jarvisDashboard,
+            clientTimeIST: new Date().toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', hour12: true }) + " IST"
+          },
         }),
       });
 
@@ -996,7 +1049,11 @@ export default function App() {
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const enabledTriggers = voiceApps.filter(app => app.enabled).map(app => `${app.trigger}:${app.url}`).join(",");
-      const wsUrl = `${protocol}//${window.location.host}/ws/live?lang=${selectedLanguage}&apps=${encodeURIComponent(enabledTriggers)}&time=${encodeURIComponent(new Date().toString())}&personality=${personality}`;
+      const dashboardStr = JSON.stringify({
+        ...jarvisDashboard,
+        clientTimeIST: new Date().toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', hour12: true }) + " IST"
+      });
+      const wsUrl = `${protocol}//${window.location.host}/ws/live?lang=${selectedLanguage}&apps=${encodeURIComponent(enabledTriggers)}&time=${encodeURIComponent(new Date().toString())}&personality=${personality}&uiTheme=${uiTheme}&jarvisDashboard=${encodeURIComponent(dashboardStr)}`;
       const socket = new WebSocket(wsUrl);
 
       setWs(socket);
@@ -1206,7 +1263,7 @@ export default function App() {
   const themeCloseBtn = isSassy ? "bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-white shadow-lg shadow-purple-500/25" : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 text-white shadow-lg shadow-rose-500/25";
 
   return (
-    <div className={`relative min-h-screen w-full bg-[#07070b] text-white flex flex-col items-center justify-between p-4 overflow-x-hidden font-sans select-none ${isSassy ? "selection:bg-purple-500/30" : "selection:bg-rose-500/30"}`}>
+    <div className={`relative min-h-screen w-full bg-[#07070b] text-white flex flex-col items-center justify-between p-4 overflow-x-hidden font-sans select-none ${uiTheme === "jarvis" ? "selection:bg-cyan-500/30" : isSassy ? "selection:bg-purple-500/30" : "selection:bg-rose-500/30"}`}>
       
       {/* Hidden screen-reader live announcements for accessibility (e.g. TalkBack / Voice Access on Vivo Y2140) */}
       <div id="aria-status-announcer" className="sr-only" aria-live="polite">
@@ -1215,22 +1272,50 @@ export default function App() {
 
       {/* Dynamic 3D holographic background images */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <img
-          src={mayraBgInactive}
-          alt="Mayra Inactive BG"
-          referrerPolicy="no-referrer"
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
-            sessionState === "disconnected" ? "opacity-35 scale-100 blur-[2px]" : "opacity-0 scale-105 blur-[4px]"
-          }`}
-        />
-        <img
-          src={mayraBgActive}
-          alt="Mayra Active BG"
-          referrerPolicy="no-referrer"
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
-            sessionState !== "disconnected" ? "opacity-45 scale-100" : "opacity-0 scale-95"
-          }`}
-        />
+        {uiTheme === "jarvis" ? (
+          <>
+            {/* Highly sophisticated metallic cybertech background for Jarvis 4.0 */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15)_0%,rgba(7,7,11,1)_80%)] z-0" />
+            <div 
+              className="absolute inset-0 opacity-15"
+              style={{
+                backgroundImage: `radial-gradient(circle, rgba(6,182,212,0.3) 1px, transparent 1px)`,
+                backgroundSize: '24px 24px',
+              }}
+            />
+            {/* Premium Metallic scanline effect */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/[0.02] to-transparent bg-[size:100%_4px] opacity-40 animate-pulse" />
+            
+            {/* Beautiful holographic Jarvis Logo pulsing gently */}
+            <img
+              src={rajeshJarvisLogo}
+              alt="Rajesh Jarvis 4.0 Logo"
+              referrerPolicy="no-referrer"
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+                sessionState !== "disconnected" ? "opacity-35 scale-100 blur-[1px]" : "opacity-20 scale-95 blur-[3px]"
+              }`}
+            />
+          </>
+        ) : (
+          <>
+            <img
+              src={mayraBgInactive}
+              alt="Mayra Inactive BG"
+              referrerPolicy="no-referrer"
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+                sessionState === "disconnected" ? "opacity-35 scale-100 blur-[2px]" : "opacity-0 scale-105 blur-[4px]"
+              }`}
+            />
+            <img
+              src={mayraBgActive}
+              alt="Mayra Active BG"
+              referrerPolicy="no-referrer"
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+                sessionState !== "disconnected" ? "opacity-45 scale-100" : "opacity-0 scale-95"
+              }`}
+            />
+          </>
+        )}
         {/* Ambient dark veil and vignette overlay to ensure high contrast */}
         <div className="absolute inset-0 bg-[#07070b]/80" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-transparent to-[#07070b]/70" />
