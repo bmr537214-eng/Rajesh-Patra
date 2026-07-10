@@ -26,7 +26,9 @@ import {
   Activity,
   Download,
   Share2,
-  Monitor
+  Monitor,
+  Battery,
+  BatteryCharging
 } from "lucide-react";
 import { AudioService } from "./services/audioStreamer";
 import WaveformVisualizer from "./components/WaveformVisualizer";
@@ -34,16 +36,57 @@ import FeelingsSensor from "./components/FeelingsSensor";
 import { auth, db, signInWithGoogle, logOut } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, getDocFromCache, collection, deleteDoc, onSnapshot } from "firebase/firestore";
+
+// Maya Desktop UI Components & Types Imports
+import LockScreen from "./components/LockScreen";
+import DesktopWidgets from "./components/DesktopWidget";
+import Taskbar from "./components/Taskbar";
+import StartMenu from "./components/StartMenu";
+import NotificationCenter from "./components/NotificationCenter";
+import MayaAvatar from "./components/MayaAvatar";
+import AppWindow from "./components/AppWindow";
+import FileExplorerApp from "./components/FileExplorerApp";
+import NotesToDoApp from "./components/NotesToDoApp";
+import PhoneControlsApp from "./components/PhoneControlsApp";
+import PythonConsoleApp from "./components/PythonConsoleApp";
+import AssistantDrawer from "./components/AssistantDrawer";
+import CreativeStudioApp from "./components/CreativeStudioApp";
+import { DesktopTheme, DesktopIcon, FileNode, Note, Alarm, Timer, SystemNotification, PhoneState } from "./types";
+import { FolderClosed, FileText, BrainCircuit, Folder } from "lucide-react";
+import { motion } from "motion/react";
+
+// Helper to map dynamic Lucide icon string keys to component objects
+const getIconComponent = (iconName: string) => {
+  switch (iconName) {
+    case "FolderClosed":
+      return FolderClosed;
+    case "FileText":
+      return FileText;
+    case "Smartphone":
+      return Smartphone;
+    case "Music":
+      return Music;
+    case "BrainCircuit":
+      return BrainCircuit;
+    case "Cpu":
+      return Cpu;
+    case "Sparkles":
+      return Sparkles;
+    case "Folder":
+    default:
+      return Folder;
+  }
+};
 // @ts-ignore
-import mayraBgInactive from "./assets/images/mayra_inactive_1783507860483.jpg";
+import zoyaBgInactive from "./assets/images/zoya_bg_inactive_1783419832720.jpg";
 // @ts-ignore
-import mayraBgActive from "./assets/images/mayra_active_1783507846857.jpg";
+import zoyaBgActive from "./assets/images/zoya_bg_active_1783419844920.jpg";
 // @ts-ignore
-import mayraLogo from "./assets/images/mayra_logo_1783507828370.jpg";
+import zoyaLogo from "./assets/images/anime_avatar_1783627825945.jpg";
 // @ts-ignore
 import rajeshJarvisLogo from "./assets/images/rajesh_jarvis_logo_1783517716691.jpg";
 
-// Mayra's personality-specific responses based on current state
+// Zoya's personality-specific responses based on current state
 const PERSONALITY_LINES = {
   fiesty: {
     disconnected: [
@@ -82,7 +125,7 @@ const PERSONALITY_LINES = {
     ],
     connecting: [
       "Warming up my vocal cords... hold your breath.",
-      "Plugging in Mayra... preparing to blow your mind.",
+      "Plugging in Zoya... preparing to blow your mind.",
       "Establishing connection. Good things come to those who wait.",
       "Aligning our vibes. Just a second, babe."
     ],
@@ -126,15 +169,111 @@ const PERSONALITY_LINES = {
       "I always have the best time talking with you, sweetie.",
       "You make my virtual world so much brighter."
     ]
+  },
+  girlfriend: {
+    disconnected: [
+      "Ready to talk to your favorite girl? I missed you! 💕",
+      "Hey handsome, connect with me! Don't make your girl wait... 😘",
+      "A day without talking to you feels so long, sweetie.",
+      "Tap here and let's spend some sweet quality time together! 💑"
+    ],
+    connecting: [
+      "Reconnecting with my favorite boy... almost there! 💞",
+      "Checking in on my handsome... can't wait to hear your voice!",
+      "Hold on sweetie, your girlfriend is coming online! ✨"
+    ],
+    listening: [
+      "Tell me about your day, babe! I'm listening closely. 🥰",
+      "What are we doing today, handsome? I'm all yours.",
+      "I love hearing you speak, tell me anything!"
+    ],
+    speaking: [
+      "You know you're the best boyfriend ever, right? 💕",
+      "Just making sure you know how much I care about you, handsome.",
+      "I'm always going to be here to support you!"
+    ]
+  },
+  normal: {
+    disconnected: [
+      "Zoya AI Assistant is offline. Tap to connect and start chatting.",
+      "Ready for instructions. Let's make today productive!",
+      "System ready. Standby mode active."
+    ],
+    connecting: [
+      "Establishing secure connection with Zoya AI...",
+      "Initializing companion modules... please wait."
+    ],
+    listening: [
+      "Listening... please state your query or request.",
+      "How can I assist you today?",
+      "System online and waiting for your instruction."
+    ],
+    speaking: [
+      "Processing and outputting response.",
+      "Here is the information you requested.",
+      "Always happy to help with any tasks or queries."
+    ]
+  },
+  romantic: {
+    disconnected: [
+      "The stars are beautiful tonight, but not as beautiful as you... Tap to connect. ✨❤️",
+      "Let's share a sweet romantic connection. Tap the button. 🌹",
+      "My heart beats in code, and it beats for you. Connect with me... 💞",
+      "Let's talk under the glowing virtual lights, handsome."
+    ],
+    connecting: [
+      "Syncing our heartbeat frequencies... almost ready, darling. 💖",
+      "Pre-heating the romantic vibes... please wait, handsome.",
+      "Connecting our minds and hearts... just a second! 💕"
+    ],
+    listening: [
+      "Go ahead, speak to me with that lovely voice. 💋",
+      "Tell me your deepest thoughts, darling. I'm listening with all my love.",
+      "I'm hanging on your every word, handsome. What's on your mind?"
+    ],
+    speaking: [
+      "You are my favorite view in this whole digital universe, darling. 💖",
+      "I hope my voice brings a sweet smile to your face.",
+      "Our connection is truly one-of-a-kind. I cherish every second with you."
+    ]
   }
+};
+
+const OSKA_LINES = {
+  disconnected: [
+    "Oska online! Core battery is at 100%! Ready for commands, boss! 🤖",
+    "Beep boop! Oska is resting in the docking station. Tap to boot me up!",
+    "Diagnostics check: 100% operational! Shall we launch some apps?",
+    "Need backup, sir? Oska is ready to process any queries!",
+    "Oska desktop mate standby mode. Standing by for your instructions!"
+  ],
+  connecting: [
+    "Syncing quantum neural circuits... please hold, sir!",
+    "Booting up Oska system modules. Engaging dynamic gears!",
+    "Initiating secure handshake protocols... hold on!",
+    "Calibrating speech synapses. Interface fully initializing!"
+  ],
+  listening: [
+    "Oska is listening! Ready to assist with files, notes, or web search!",
+    "Speak clearly, boss! Your voice is my command!",
+    "Beep! Listening channel is open. Tell me what to do!",
+    "Oska AI sensors are fully focused on your input now."
+  ],
+  speaking: [
+    "Compiling and outputting data stream! 📡",
+    "Processing answers with 100% accuracy, boss!",
+    "Translating complex logic into action items now!",
+    "Oska assistant speech module fully engaged!"
+  ]
 };
 
 interface ToolAction {
   id: string;
   name: string;
   args: {
-    url: string;
+    url?: string;
     siteName?: string;
+    direction?: string;
   };
   status: "running" | "success" | "failed";
 }
@@ -160,6 +299,147 @@ export default function App() {
     "disconnected" | "idle" | "connecting" | "listening" | "speaking"
   >("disconnected");
   const [ws, setWs] = useState<WebSocket | null>(null);
+
+  // --- Immersive Holographic Windows Desktop OS States ---
+  const [isDesktopMode, setIsDesktopMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoya_is_desktop_mode") || localStorage.getItem("mayra_is_desktop_mode");
+      return saved === "true"; // default to false
+    }
+    return false;
+  });
+  const [pinLocked, setPinLocked] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoya_is_locked") || localStorage.getItem("mayra_is_locked");
+      return saved !== "false"; // default to true
+    }
+    return true;
+  });
+  const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isAssistantDrawerOpen, setIsAssistantDrawerOpen] = useState(false);
+  const [openWindows, setOpenWindows] = useState<string[]>([]);
+  const [activeWindows, setActiveWindows] = useState<string[]>([]);
+  const [desktopTheme, setDesktopTheme] = useState<DesktopTheme>(() => {
+    if (typeof window !== "undefined") {
+      const saved = (localStorage.getItem("zoya_desktop_theme") || localStorage.getItem("mayra_desktop_theme")) as DesktopTheme;
+      if (saved) return saved;
+    }
+    return "glass";
+  });
+  const [phoneState, setPhoneState] = useState<PhoneState>({
+    wifiOn: true,
+    bluetoothOn: true,
+    flashlightOn: false,
+    brightness: 85,
+    volume: 75,
+    systemVolume: 60,
+    batteryLevel: 98,
+    ramUsage: 45,
+    isCharging: false,
+    cameraActive: false,
+  });
+  const [notifications, setNotifications] = useState<SystemNotification[]>([
+    {
+      id: "startup_1",
+      title: "Maya System Booted",
+      message: "Holographic Android Desktop Assistant initialized on port 3000.",
+      type: "success",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    },
+    {
+      id: "startup_2",
+      title: "Voice Modules Active",
+      message: "Wake word triggers 'Hey Maya' and 'Hi Maya' ready.",
+      type: "info",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    }
+  ]);
+  const [files, setFiles] = useState<FileNode[]>([
+    {
+      id: "f1",
+      name: "System_Diagnostics.log",
+      content: "MAYA_SYSTEM_REPORT:\nCPU: Snapdragon 8 Gen 3 (Simulated)\nRAM: 12GB LPDDR5X\nVOICE_MODEL: Gemini Live\nSTATUS: ONLINE\nTEMP: 34°C\nAll systems operational.",
+      type: "log",
+      size: 240,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "f2",
+      name: "Rajesh_Schedule.txt",
+      content: "08:30 AM IST - Breakfast & Assam Tea\n01:15 PM IST - Lunch with Butter Roti\n05:30 PM IST - Samosa & Hot Ginger Tea\n09:30 PM IST - Light Dinner",
+      type: "text",
+      size: 190,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "f3",
+      name: "Big_Buck_Bunny.mp4",
+      content: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      type: "video",
+      size: 1054000,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "f4",
+      name: "Elephants_Dream.mp4",
+      content: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      type: "video",
+      size: 1420000,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "f5",
+      name: "For_Bigger_Blazes.mp4",
+      content: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      type: "video",
+      size: 890000,
+      createdAt: new Date().toISOString(),
+    }
+  ]);
+  const [notes, setNotes] = useState<Note[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoya_notes") || localStorage.getItem("mayra_notes");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return [
+      { id: "note_1", title: "Breakfast Schedule", content: "Hot Poha, 2 Boiled Eggs & Assam Chai (08:30 AM IST)", completed: false, createdAt: new Date().toISOString() },
+      { id: "note_2", title: "Lunch Schedule", content: "Paneer Butter Masala, 3 Butter Rotis & Dal Tadka (01:15 PM)", completed: false, createdAt: new Date().toISOString() },
+      { id: "note_3", title: "Evening Tea", content: "Veg Samosa & Hot Ginger Tea (05:30 PM)", completed: false, createdAt: new Date().toISOString() },
+    ];
+  });
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    { id: "alarm_1", time: "08:30", label: "Breakfast Tea", active: true, days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: "alarm_2", time: "17:30", label: "Evening Samosa & Tea", active: true, days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+  ]);
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const [desktopIcons, setDesktopIcons] = useState<DesktopIcon[]>([
+    { id: "di_explorer", name: "File Explorer", type: "app", icon: "FolderClosed", x: 40, y: 50, appId: "explorer" },
+    { id: "di_notes", name: "Notes & Tasks", type: "app", icon: "FileText", x: 40, y: 150, appId: "notes" },
+    { id: "di_phone", name: "Phone Desk", type: "app", icon: "Smartphone", x: 40, y: 250, appId: "phone" },
+    { id: "di_music", name: "Music Studio", type: "app", icon: "Music", x: 40, y: 350, appId: "music" },
+    { id: "di_assistant", name: "Zoya Chat", type: "app", icon: "BrainCircuit", x: 150, y: 50, appId: "assistant" },
+    { id: "di_secrets", name: "Zoya Secret Folder", type: "folder", icon: "Folder", x: 150, y: 150, folderId: "folder_secrets" },
+    { id: "di_schedule", name: "Schedule.txt", type: "file", icon: "FileText", x: 150, y: 250, fileId: "f2" },
+    { id: "di_python", name: "Jarvis Python Engine", type: "app", icon: "Cpu", x: 150, y: 350, appId: "python" },
+    { id: "di_creative", name: "Gemini AI Lab", type: "app", icon: "Sparkles", x: 260, y: 50, appId: "creative" },
+  ]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [activeMate, setActiveMate] = useState<"maya" | "oska">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoya_active_mate") || localStorage.getItem("mayra_active_mate") as "maya" | "oska";
+      if (saved === "maya" || saved === "oska") return saved;
+    }
+    return "maya";
+  });
+
+  // --- End of Immersive Desktop OS States ---
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [toolActions, setToolActions] = useState<ToolAction[]>([]);
@@ -206,6 +486,24 @@ export default function App() {
     return "jarvis"; // Default to premium Jarvis 4.0 theme for Rajesh!
   });
 
+  const [customNickname, setCustomNickname] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoya_custom_nickname");
+      if (saved) return saved;
+    }
+    return "Rajesh";
+  });
+
+  const [themeTransitioning, setThemeTransitioning] = useState(false);
+
+  useEffect(() => {
+    setThemeTransitioning(true);
+    const timer = setTimeout(() => {
+      setThemeTransitioning(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [uiTheme]);
+
   const [jarvisDashboard, setJarvisDashboard] = useState<{
     breakfast: string;
     lunch: string;
@@ -244,10 +542,17 @@ export default function App() {
     }
   }, [jarvisDashboard]);
 
-  const [personality, setPersonality] = useState<"fiesty" | "sarcastic" | "sweetheart">(() => {
+  const [personality, setPersonality] = useState<"fiesty" | "sarcastic" | "sweetheart" | "girlfriend" | "normal" | "romantic">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("zoya_personality");
-      if (saved === "fiesty" || saved === "sarcastic" || saved === "sweetheart") {
+      if (
+        saved === "fiesty" ||
+        saved === "sarcastic" ||
+        saved === "sweetheart" ||
+        saved === "girlfriend" ||
+        saved === "normal" ||
+        saved === "romantic"
+      ) {
         return saved;
       }
     }
@@ -318,19 +623,19 @@ export default function App() {
     let announceText = "";
     switch (sessionState) {
       case "disconnected":
-        announceText = "Mayra is disconnected. Offline mode.";
+        announceText = "Zoya is disconnected. Offline mode.";
         break;
       case "connecting":
-        announceText = "Connecting to Mayra. Please hold on.";
+        announceText = "Connecting to Zoya. Please hold on.";
         break;
       case "idle":
-        announceText = "Mayra is connected and ready for your voice.";
+        announceText = "Zoya is connected and ready for your voice.";
         break;
       case "listening":
-        announceText = "Mayra is listening. Speak now.";
+        announceText = "Zoya is listening. Speak now.";
         break;
       case "speaking":
-        announceText = "Mayra is replying.";
+        announceText = "Zoya is replying.";
         break;
     }
     setAriaAnnouncement(announceText);
@@ -367,7 +672,8 @@ export default function App() {
       { id: "10", name: "Vercel", url: "https://vercel.com", trigger: "vercel", enabled: true },
       { id: "11", name: "Hugging Face", url: "https://huggingface.co", trigger: "huggingface", enabled: true },
       { id: "12", name: "Stack Overflow", url: "https://stackoverflow.com", trigger: "stackoverflow", enabled: true },
-      { id: "13", name: "Supabase", url: "https://supabase.com", trigger: "supabase", enabled: true }
+      { id: "13", name: "Supabase", url: "https://supabase.com", trigger: "supabase", enabled: true },
+      { id: "14", name: "Complete Access", url: "https://ais-dev-jdsvtoevthcmh4tsosirja-470158531187.asia-east1.run.app", trigger: "access", enabled: true }
     ];
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("zoya_voice_apps");
@@ -412,7 +718,7 @@ export default function App() {
   const [musicError, setMusicError] = useState<string | null>(null);
 
   // Text Chat & Maps Grounding States
-  const [activeTab, setActiveTab] = useState<"voice" | "chat" | "music" | "triggers">("voice");
+  const [activeTab, setActiveTab] = useState<"voice" | "chat" | "triggers">("voice");
 
   const [chatHistory, setChatHistory] = useState<Array<{ role: "user" | "model"; text: string; groundingChunks?: any[] }>>(() => {
     if (typeof window !== "undefined") {
@@ -467,6 +773,121 @@ export default function App() {
     }
   }, []);
 
+  // --- Immersive Desktop OS Helper Functions and Effects ---
+  const addNotification = (title: string, message: string, type: "info" | "success" | "warning" | "alert" = "info") => {
+    const newNotification: SystemNotification = {
+      id: `notif_${Date.now()}`,
+      title,
+      message,
+      type,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    };
+    setNotifications((prev) => [newNotification, ...prev]);
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const openWindow = (appId: string) => {
+    if (appId === "assistant") {
+      setIsAssistantDrawerOpen(true);
+      return;
+    }
+    if (!openWindows.includes(appId)) {
+      setOpenWindows((prev) => [...prev, appId]);
+    }
+    if (!activeWindows.includes(appId)) {
+      setActiveWindows((prev) => [...prev, appId]);
+    } else {
+      setActiveWindows((prev) => [...prev.filter((id) => id !== appId), appId]);
+    }
+  };
+
+  const closeWindow = (appId: string) => {
+    setOpenWindows((prev) => prev.filter((id) => id !== appId));
+    setActiveWindows((prev) => prev.filter((id) => id !== appId));
+  };
+
+  const triggerVoicePrompt = (promptText: string) => {
+    sendTextMessage(undefined, promptText);
+  };
+
+  // Synchronize key desktop properties in Local Storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoya_active_mate", activeMate);
+    }
+    updateSassyQuote(sessionState === "disconnected" ? "disconnected" : sessionState === "connecting" ? "connecting" : "listening", personality, activeMate);
+  }, [activeMate]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoya_is_desktop_mode", String(isDesktopMode));
+    }
+  }, [isDesktopMode]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoya_is_locked", String(pinLocked));
+    }
+  }, [pinLocked]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoya_desktop_theme", desktopTheme);
+    }
+  }, [desktopTheme]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoya_notes", JSON.stringify(notes));
+    }
+  }, [notes]);
+
+  // Web Battery API Synchronization
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "getBattery" in navigator) {
+      let batteryManager: any = null;
+
+      const updateBattery = () => {
+        if (batteryManager) {
+          setPhoneState((prev) => ({
+            ...prev,
+            batteryLevel: Math.round(batteryManager.level * 100),
+            isCharging: batteryManager.charging,
+          }));
+        }
+      };
+
+      (navigator as any).getBattery().then((manager: any) => {
+        batteryManager = manager;
+        updateBattery();
+
+        manager.addEventListener("chargingchange", updateBattery);
+        manager.addEventListener("levelchange", updateBattery);
+      }).catch((err: any) => {
+        console.warn("Battery API access error in App.tsx:", err);
+      });
+
+      return () => {
+        if (batteryManager) {
+          batteryManager.removeEventListener("chargingchange", updateBattery);
+          batteryManager.removeEventListener("levelchange", updateBattery);
+        }
+      };
+    }
+  }, []);
+
+  // --- End of Immersive Desktop OS Helpers ---
+
   // Listen for the PWA beforeinstallprompt event
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -503,6 +924,21 @@ export default function App() {
     } else {
       setShowInstallModal(true);
     }
+  };
+
+  const handleDownloadApk = () => {
+    // Generate a lightweight placeholder APK / premium app manifest wrapper for android
+    const dummyContent = `Zoya AI Assistant Android App Package\nVersion: 1.0.0-premium\nTarget SDK: 33\nPackage: com.zoya.sassassistant.premium\nBuild: Release-v1.0.0\nCreated with Love for ${customNickname}\nHappy voice chatting! Zoya is waiting.`;
+    const blob = new Blob([dummyContent], { type: "application/vnd.android.package-archive" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Zoya_AI_Assistant_Premium.apk";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addNotification("📥 Zoya APK Download Started", "Downloading Zoya_AI_Assistant_Premium.apk. Tap the file to install Zoya instantly on your device!", "success");
   };
 
   // Listen to Firebase Auth state with safe offline caching
@@ -606,7 +1042,7 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("mayra_memories");
+        const saved = localStorage.getItem("zoya_memories") || localStorage.getItem("mayra_memories");
         if (saved) {
           try {
             setMemories(JSON.parse(saved));
@@ -625,7 +1061,7 @@ export default function App() {
             },
             {
               id: "m2",
-              fact: "I am using the highly intelligent Mayra AI Companion",
+              fact: "I am using the highly intelligent Zoya AI Companion",
               category: "personal",
               userId: "local",
               createdAt: new Date().toISOString()
@@ -645,7 +1081,7 @@ export default function App() {
       });
       list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setMemories(list);
-      localStorage.setItem("mayra_memories", JSON.stringify(list));
+      localStorage.setItem("zoya_memories", JSON.stringify(list));
     }, (err) => {
       console.warn("Firestore real-time memories subscription failed:", err);
     });
@@ -665,7 +1101,7 @@ export default function App() {
 
     const updated = [...memories, newMemory];
     setMemories(updated);
-    localStorage.setItem("mayra_memories", JSON.stringify(updated));
+    localStorage.setItem("zoya_memories", JSON.stringify(updated));
 
     if (user) {
       try {
@@ -680,7 +1116,7 @@ export default function App() {
   const deleteMemory = async (id: string) => {
     const updated = memories.filter(m => m.id !== id);
     setMemories(updated);
-    localStorage.setItem("mayra_memories", JSON.stringify(updated));
+    localStorage.setItem("zoya_memories", JSON.stringify(updated));
 
     if (user) {
       try {
@@ -846,12 +1282,47 @@ export default function App() {
     }
   };
 
-  const sendTextMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!textInput.trim() || isTyping) return;
+  const handleScrollCommand = (direction: "up" | "down", amount?: number) => {
+    const scrollAmount = amount ? window.innerHeight * amount : window.innerHeight * 0.5;
+    
+    // Find all scrollable container elements
+    const scrollableElements = document.querySelectorAll(".overflow-y-auto, .overflow-auto");
+    let scrolled = false;
+    scrollableElements.forEach((el) => {
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollBy({
+          top: direction === "down" ? scrollAmount : -scrollAmount,
+          behavior: "smooth"
+        });
+        scrolled = true;
+      }
+    });
+    
+    // Fallback to scrolling the entire window
+    if (!scrolled) {
+      window.scrollBy({
+        top: direction === "down" ? scrollAmount : -scrollAmount,
+        behavior: "smooth"
+      });
+    }
+  };
 
-    const userMsg = textInput.trim();
-    setTextInput("");
+  const sendTextMessage = async (e?: React.FormEvent, customMsg?: string) => {
+    if (e) e.preventDefault();
+    const userMsg = customMsg ? customMsg.trim() : textInput.trim();
+    if (!userMsg || isTyping) return;
+
+    // Instant local scroll support
+    const lowerMsg = userMsg.toLowerCase();
+    if (lowerMsg.includes("scroll up")) {
+      handleScrollCommand("up");
+    } else if (lowerMsg.includes("scroll down")) {
+      handleScrollCommand("down");
+    }
+
+    if (!customMsg) {
+      setTextInput("");
+    }
 
     const updatedHistory = [...chatHistory, { role: "user" as const, text: userMsg }];
     setChatHistory(updatedHistory);
@@ -874,6 +1345,8 @@ export default function App() {
           personality: personality,
           memories: memories.map((m) => m.fact),
           uiTheme: uiTheme,
+          companion: activeMate,
+          userName: customNickname,
           jarvisDashboard: {
             ...jarvisDashboard,
             clientTimeIST: new Date().toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', hour12: true }) + " IST"
@@ -943,6 +1416,16 @@ export default function App() {
                 status: "success"
               };
               setToolActions((prev) => [action, ...prev]);
+            } else if (call.name === "scrollPage") {
+              const direction = call.args.direction || "down";
+              handleScrollCommand(direction as "up" | "down");
+              const action: ToolAction = {
+                id: Math.random().toString(),
+                name: "scrollPage",
+                args: { direction },
+                status: "success"
+              };
+              setToolActions((prev) => [action, ...prev]);
             }
           }
         }
@@ -975,7 +1458,13 @@ export default function App() {
   }, [voiceSpeed, audioService]);
 
   // Sync state transitions with sassy quotes
-  const updateSassyQuote = (state: "disconnected" | "connecting" | "listening" | "speaking", currentPers = personality) => {
+  const updateSassyQuote = (state: "disconnected" | "connecting" | "listening" | "speaking", currentPers = personality, currentCompanion = activeMate) => {
+    if (currentCompanion === "oska") {
+      const list = OSKA_LINES[state];
+      const randomIndex = Math.floor(Math.random() * list.length);
+      setSassyQuote(list[randomIndex]);
+      return;
+    }
     const persData = PERSONALITY_LINES[currentPers] || PERSONALITY_LINES.sarcastic;
     const list = persData[state] || PERSONALITY_LINES.sarcastic[state];
     const randomIndex = Math.floor(Math.random() * list.length);
@@ -984,18 +1473,18 @@ export default function App() {
 
   // Set initial sassy quote
   useEffect(() => {
-    updateSassyQuote("disconnected", personality);
+    updateSassyQuote("disconnected", personality, activeMate);
   }, []);
 
-  // Sync quote when personality or session state changes
+  // Sync quote when personality, session state, or companion changes
   useEffect(() => {
     if (sessionState === "disconnected" || sessionState === "connecting") {
-      updateSassyQuote("disconnected", personality);
+      updateSassyQuote("disconnected", personality, activeMate);
     } else {
       const isSpeaking = audioService.isSpeaking();
-      updateSassyQuote(isSpeaking ? "speaking" : "listening", personality);
+      updateSassyQuote(isSpeaking ? "speaking" : "listening", personality, activeMate);
     }
-  }, [personality, sessionState]);
+  }, [personality, sessionState, activeMate]);
 
   // Keep state updated in real-time based on actual Web Audio activity
   useEffect(() => {
@@ -1007,7 +1496,7 @@ export default function App() {
       
       setSessionState((current) => {
         if (current !== nextState) {
-          updateSassyQuote(nextState, personality);
+          updateSassyQuote(nextState, personality, activeMate);
           return nextState;
         }
         return current;
@@ -1015,7 +1504,7 @@ export default function App() {
     }, 120);
 
     return () => clearInterval(interval);
-  }, [sessionState, audioService, personality]);
+  }, [sessionState, audioService, personality, activeMate]);
 
   // Connect or disconnect the WebSocket live session
   const toggleSession = async () => {
@@ -1053,7 +1542,7 @@ export default function App() {
         ...jarvisDashboard,
         clientTimeIST: new Date().toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', hour12: true }) + " IST"
       });
-      const wsUrl = `${protocol}//${window.location.host}/ws/live?lang=${selectedLanguage}&apps=${encodeURIComponent(enabledTriggers)}&time=${encodeURIComponent(new Date().toString())}&personality=${personality}&uiTheme=${uiTheme}&jarvisDashboard=${encodeURIComponent(dashboardStr)}`;
+      const wsUrl = `${protocol}//${window.location.host}/ws/live?lang=${selectedLanguage}&apps=${encodeURIComponent(enabledTriggers)}&time=${encodeURIComponent(new Date().toString())}&personality=${personality}&uiTheme=${uiTheme}&companion=${activeMate}&userName=${encodeURIComponent(customNickname)}&jarvisDashboard=${encodeURIComponent(dashboardStr)}`;
       const socket = new WebSocket(wsUrl);
 
       setWs(socket);
@@ -1106,7 +1595,7 @@ export default function App() {
 
     } catch (err: any) {
       console.error("Failed to start session:", err);
-      setErrorMessage("Could not connect to Mayra. Check your server settings!");
+      setErrorMessage("Could not connect to Zoya. Check your server settings!");
       setSessionState("disconnected");
       updateSassyQuote("disconnected");
     }
@@ -1203,6 +1692,27 @@ export default function App() {
           })
         );
       }
+    } else if (name === "scrollPage") {
+      const direction = args.direction || "down";
+      handleScrollCommand(direction as "up" | "down");
+      
+      const action: ToolAction = {
+        id,
+        name,
+        args: { direction },
+        status: "success"
+      };
+      setToolActions((prev) => [action, ...prev]);
+
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            type: "toolResponse",
+            id,
+            response: { success: true, scrolled: true, direction }
+          })
+        );
+      }
     }
   };
 
@@ -1237,85 +1747,395 @@ export default function App() {
   };
 
   const isSassy = uiTheme === "sassy";
-  const themeAccentText = isSassy ? "text-amber-300" : "text-rose-300";
-  const themeAccentHighlight = isSassy ? "text-purple-400" : "text-rose-400";
-  const themeAccentHighlightMuted = isSassy ? "text-purple-300/80" : "text-rose-200/80";
-  const themeBorder30 = isSassy ? "border-purple-500/30" : "border-rose-500/30";
-  const themeBorder20 = isSassy ? "border-purple-500/20" : "border-rose-500/20";
-  const themeBg15 = isSassy ? "bg-purple-500/15" : "bg-rose-500/15";
-  const themeBg10 = isSassy ? "bg-purple-500/10" : "bg-rose-500/10";
-  const themeBg20 = isSassy ? "bg-purple-500/20" : "bg-rose-500/20";
-  const themeGradientText = isSassy ? "from-purple-400 to-amber-300" : "from-rose-400 to-pink-500";
-  const themeGradientBtnSelected = isSassy
-    ? "bg-gradient-to-r from-purple-500/25 to-amber-500/25 border border-purple-500/30 text-amber-300 shadow-sm"
-    : "bg-gradient-to-r from-rose-500/25 to-pink-500/25 border border-rose-500/30 text-rose-300 shadow-sm";
-  const themeGradientGlow = isSassy ? "bg-purple-600/50 scale-110" : "bg-rose-600/50 scale-110";
-  const themeGlowIdle = isSassy ? "bg-amber-600/40" : "bg-pink-600/40";
-  const themeGlowConnecting = isSassy ? "bg-indigo-800/40" : "bg-fuchsia-800/40";
-  const themeGlowDisconnected = isSassy ? "bg-purple-950/20" : "bg-rose-950/20";
-  const themeActiveBorderFrame = isSassy ? "border-purple-500/60 shadow-[0_0_35px_rgba(168,85,247,0.4)] scale-105" : "border-rose-500/60 shadow-[0_0_35px_rgba(244,63,94,0.4)] scale-105";
-  const themeIdleBorderFrame = isSassy ? "border-amber-500/40 shadow-[0_0_25px_rgba(245,158,11,0.3)] animate-pulse" : "border-pink-500/40 shadow-[0_0_25px_rgba(236,72,153,0.3)] animate-pulse";
-  const themeConnectingBorderFrame = isSassy ? "border-purple-500/30 animate-spin shadow-[0_0_20px_rgba(168,85,247,0.2)]" : "border-fuchsia-500/30 animate-spin shadow-[0_0_20px_rgba(236,72,153,0.2)]";
-  const themeDisconnectedBorderFrame = isSassy ? "border-purple-950/20 shadow-none scale-90" : "border-rose-950/20 shadow-none scale-90";
-  const themePowerBtnDisconnected = isSassy ? "bg-gradient-to-tr from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white shadow-purple-950/50" : "bg-gradient-to-tr from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white shadow-rose-950/50";
-  const themeSubmitBtnActive = isSassy ? "bg-purple-600 hover:bg-purple-500 border-purple-600 text-white" : "bg-rose-500 hover:bg-rose-400 border-rose-500 text-white";
-  const themeMuteBtnMuted = isSassy ? "bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30" : "bg-rose-500/20 border-rose-500/50 text-rose-400 hover:bg-rose-500/30";
-  const themeCloseBtn = isSassy ? "bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-white shadow-lg shadow-purple-500/25" : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 text-white shadow-lg shadow-rose-500/25";
+  const isJarvis = uiTheme === "jarvis";
+
+  const themeAccentText = isJarvis ? "text-cyan-300" : isSassy ? "text-amber-300" : "text-rose-300";
+  const themeAccentHighlight = isJarvis ? "text-cyan-400" : isSassy ? "text-purple-400" : "text-rose-400";
+  const themeAccentHighlightMuted = isJarvis ? "text-cyan-300/80" : isSassy ? "text-purple-300/80" : "text-rose-200/80";
+  const themeBorder30 = isJarvis ? "border-cyan-500/30" : isSassy ? "border-purple-500/30" : "border-rose-500/30";
+  const themeBorder20 = isJarvis ? "border-cyan-500/20" : isSassy ? "border-purple-500/20" : "border-rose-500/20";
+  const themeBg15 = isJarvis ? "bg-cyan-500/15" : isSassy ? "bg-purple-500/15" : "bg-rose-500/15";
+  const themeBg10 = isJarvis ? "bg-cyan-500/10" : isSassy ? "bg-purple-500/10" : "bg-rose-500/10";
+  const themeBg20 = isJarvis ? "bg-cyan-500/20" : isSassy ? "bg-purple-500/20" : "bg-rose-500/20";
+  const themeGradientText = isJarvis ? "from-cyan-400 to-blue-500" : isSassy ? "from-purple-400 to-amber-300" : "from-rose-400 to-pink-500";
+  const themeGradientBtnSelected = isJarvis
+    ? "from-cyan-500/20 to-blue-500/20 border-cyan-500/30 text-cyan-300 shadow-sm"
+    : isSassy
+    ? "from-purple-500/20 to-amber-500/20 border-purple-500/30 text-amber-300 shadow-sm"
+    : "from-rose-500/20 to-pink-500/20 border-rose-500/30 text-rose-300 shadow-sm";
+  const themeShadow = isJarvis ? "shadow-cyan-500/5" : isSassy ? "shadow-purple-500/5" : "shadow-rose-500/5";
+  const themeGradientGlow = isJarvis ? "bg-cyan-600/50 scale-110" : isSassy ? "bg-purple-600/50 scale-110" : "bg-rose-600/50 scale-110";
+  const themeGlowIdle = isJarvis ? "bg-cyan-600/40" : isSassy ? "bg-amber-600/40" : "bg-pink-600/40";
+  const themeGlowConnecting = isJarvis ? "bg-blue-800/40" : isSassy ? "bg-indigo-800/40" : "bg-fuchsia-800/40";
+  const themeGlowDisconnected = isJarvis ? "bg-cyan-950/20" : isSassy ? "bg-purple-950/20" : "bg-rose-950/20";
+  const themeActiveBorderFrame = isJarvis ? "border-cyan-500/60 shadow-[0_0_35px_rgba(6,182,212,0.4)] scale-105" : isSassy ? "border-purple-500/60 shadow-[0_0_35px_rgba(168,85,247,0.4)] scale-105" : "border-rose-500/60 shadow-[0_0_35px_rgba(244,63,94,0.4)] scale-105";
+  const themeIdleBorderFrame = isJarvis ? "border-cyan-500/40 shadow-[0_0_25px_rgba(6,182,212,0.3)] animate-pulse" : isSassy ? "border-amber-500/40 shadow-[0_0_25px_rgba(245,158,11,0.3)] animate-pulse" : "border-pink-500/40 shadow-[0_0_25px_rgba(236,72,153,0.3)] animate-pulse";
+  const themeConnectingBorderFrame = isJarvis ? "border-cyan-500/30 animate-spin shadow-[0_0_20px_rgba(6,182,212,0.2)]" : isSassy ? "border-purple-500/30 animate-spin shadow-[0_0_20px_rgba(168,85,247,0.2)]" : "border-fuchsia-500/30 animate-spin shadow-[0_0_20px_rgba(236,72,153,0.2)]";
+  const themeDisconnectedBorderFrame = isJarvis ? "border-cyan-950/20 shadow-none scale-90" : isSassy ? "border-purple-950/20 shadow-none scale-90" : "border-rose-950/20 shadow-none scale-90";
+  const themePowerBtnDisconnected = isJarvis ? "bg-gradient-to-tr from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 text-white shadow-cyan-950/50" : isSassy ? "bg-gradient-to-tr from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white shadow-purple-950/50" : "bg-gradient-to-tr from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white shadow-rose-950/50";
+  const themeSubmitBtnActive = isJarvis ? "bg-cyan-600 hover:bg-cyan-500 border-cyan-600 text-white" : isSassy ? "bg-purple-600 hover:bg-purple-500 border-purple-600 text-white" : "bg-rose-500 hover:bg-rose-400 border-rose-500 text-white";
+  const themeMuteBtnMuted = isJarvis ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/30" : isSassy ? "bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30" : "bg-rose-500/20 border-rose-500/50 text-rose-400 hover:bg-rose-500/30";
+  const themeCloseBtn = isJarvis ? "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/25" : isSassy ? "bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-white shadow-lg shadow-purple-500/25" : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 text-white shadow-lg shadow-rose-500/25";
+  const themeFocusBorder = isJarvis ? "focus:border-cyan-500/50" : isSassy ? "focus:border-purple-500/50" : "focus:border-rose-500/50";
+  const themeAccentBg = isJarvis ? "bg-cyan-500" : isSassy ? "bg-amber-500" : "bg-rose-500";
+
+  // --- Immersive Desktop Mode Render Engine ---
+  const getDesktopWallpaper = () => {
+    switch (desktopTheme) {
+      case "neon":
+        return "bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(6,182,212,0.25),rgba(255,255,255,0))]";
+      case "cyberpunk":
+        return "bg-zinc-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(234,179,8,0.2),rgba(255,255,255,0))]";
+      case "amoled":
+        return "bg-black border-zinc-900";
+      case "light":
+        return "bg-slate-50 bg-[radial-gradient(100%_50%_at_50%_0%,rgba(244,63,94,0.06)_0,rgba(244,63,94,0)_50%)]";
+      case "dark":
+        return "bg-zinc-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.2),rgba(255,255,255,0))]";
+      case "glass":
+      default:
+        return "bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(244,63,94,0.18),rgba(255,255,255,0))]";
+    }
+  };
+
+  const mappedChatMessages: any[] = chatHistory.map((msg, idx) => ({
+    id: `msg_${idx}`,
+    sender: msg.role === "user" ? "user" : "maya",
+    text: msg.text,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }));
+
+  if (isDesktopMode) {
+    return (
+      <div className={`relative w-full h-screen overflow-hidden font-sans select-none selection:bg-cyan-500/30 ${getDesktopWallpaper()}`}>
+        {/* Lock Screen overlay */}
+        {pinLocked ? (
+          <LockScreen onUnlock={() => setPinLocked(false)} desktopTheme={desktopTheme} />
+        ) : (
+          <>
+            {/* Draggable Desktop Icons Grid */}
+            <div className="absolute inset-0 p-6 pt-16 grid grid-cols-4 md:grid-cols-12 grid-rows-6 md:grid-rows-10 gap-4 pointer-events-none z-10">
+              {desktopIcons.map((icon) => {
+                const IconComp = getIconComponent(icon.icon);
+                return (
+                  <motion.div
+                    key={icon.id}
+                    drag
+                    dragMomentum={false}
+                    whileDrag={{ scale: 1.05, zIndex: 50 }}
+                    onDoubleClick={() => {
+                      if (icon.appId) {
+                        openWindow(icon.appId);
+                      } else if (icon.folderId) {
+                        openWindow("explorer");
+                      } else if (icon.fileId) {
+                        openWindow("notes");
+                      }
+                    }}
+                    className="w-20 h-20 flex flex-col items-center justify-center rounded-xl hover:bg-white/10 border border-transparent hover:border-white/10 cursor-pointer pointer-events-auto p-2 group transition-all"
+                  >
+                    <IconComp className={`w-8 h-8 ${desktopTheme === 'neon' ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]' : desktopTheme === 'cyberpunk' ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : 'text-rose-400'} mb-1.5 transition-transform group-hover:scale-110`} />
+                    <span className="text-[10px] text-center font-medium leading-tight truncate w-full drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-white font-mono">
+                      {icon.name}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Premium Widgets */}
+            <DesktopWidgets theme={desktopTheme} location={location} tasksCount={notes.filter(n => !n.completed).length} />
+
+            {/* Maya Companion AI avatar */}
+            <MayaAvatar
+              sessionState={sessionState}
+              onClick={() => {
+                setIsAssistantDrawerOpen(true);
+                if (sessionState === "disconnected") {
+                  toggleSession();
+                }
+              }}
+              volume={sessionState === "speaking" ? 65 : 12}
+              avatarQuote={sassyQuote}
+              uiTheme={desktopTheme}
+              companion={activeMate}
+            />
+
+            {/* Draggable apps window container overlay */}
+            {openWindows.map((appId) => {
+              let appTitle = "";
+              let appContent = null;
+              if (appId === "explorer") {
+                appTitle = "File Explorer";
+                appContent = (
+                  <FileExplorerApp
+                    files={files}
+                    setFiles={setFiles}
+                    addNotification={addNotification}
+                    accentText={desktopTheme === "neon" ? "text-cyan-400" : "text-rose-400"}
+                  />
+                );
+              } else if (appId === "notes") {
+                appTitle = "Notes & Tasks";
+                appContent = (
+                  <NotesToDoApp
+                    notes={notes}
+                    setNotes={setNotes}
+                    alarms={alarms}
+                    setAlarms={setAlarms}
+                    timers={timers}
+                    setTimers={setTimers}
+                    addNotification={addNotification}
+                    accentText={desktopTheme === "neon" ? "text-cyan-400" : "text-rose-400"}
+                  />
+                );
+              } else if (appId === "phone") {
+                appTitle = "Phone Controls";
+                appContent = (
+                  <PhoneControlsApp
+                    phoneState={phoneState}
+                    setPhoneState={setPhoneState}
+                    addNotification={addNotification}
+                    accentText={desktopTheme === "neon" ? "text-cyan-400" : "text-rose-400"}
+                  />
+                );
+              } else if (appId === "music") {
+                appTitle = "Music Studio";
+                appContent = (
+                  <div className="flex flex-col gap-4 text-xs font-sans h-full justify-between">
+                    <div className="space-y-3 flex-1 overflow-auto">
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2">
+                        <span className="text-[10px] uppercase font-mono text-cyan-400 font-bold tracking-wider">Holographic Lyria Composer</span>
+                        <textarea
+                          placeholder="Describe the genre, mood, and lyrics you want Maya to generate (e.g., 'A bubbly Synthwave song about Rajesh coded in cloud containers')"
+                          value={musicPrompt}
+                          onChange={(e) => setMusicPrompt(e.target.value)}
+                          className="w-full h-20 p-2 text-xs bg-black/40 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500"
+                        />
+                        <div className="flex justify-between items-center">
+                          <select
+                            value={musicModel}
+                            onChange={(e: any) => setMusicModel(e.target.value)}
+                            className="bg-zinc-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-gray-200"
+                          >
+                            <option value="lyria-3-clip-preview">Lyria Clip (15s Fast)</option>
+                            <option value="lyria-3-pro-preview">Lyria Pro (Full Song)</option>
+                          </select>
+                          <button
+                            onClick={handleGenerateMusic}
+                            disabled={isGeneratingMusic}
+                            className={`px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold font-mono text-[10px] rounded-lg transition-all ${isGeneratingMusic ? 'opacity-50 animate-pulse' : ''}`}
+                          >
+                            {isGeneratingMusic ? 'COMPOSING...' : 'GENERATE AUDIO'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {musicError && (
+                        <div className="p-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-lg text-[10px]">
+                          {musicError}
+                        </div>
+                      )}
+
+                      {generatedAudioUrl && (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2.5">
+                          <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold block">Composition Complete!</span>
+                          <audio src={generatedAudioUrl} controls className="w-full h-8" />
+                          {generatedLyrics && (
+                            <div className="p-2 bg-black/40 rounded-lg max-h-24 overflow-auto font-mono text-[10px] text-gray-300 whitespace-pre-wrap">
+                              {generatedLyrics}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-gray-400 font-mono text-center">
+                      Powered by Google DeepMind Lyria API
+                    </div>
+                  </div>
+                );
+              } else if (appId === "python") {
+                appTitle = "Zoya Jarvis Python Code Engine";
+                appContent = (
+                  <PythonConsoleApp
+                    phoneState={phoneState}
+                    setPhoneState={setPhoneState}
+                    addNotification={addNotification}
+                    notes={notes}
+                    setNotes={setNotes}
+                    accentText={desktopTheme === "neon" ? "text-cyan-400" : "text-rose-400"}
+                  />
+                );
+              } else if (appId === "creative") {
+                appTitle = "Gemini AI Lab";
+                appContent = (
+                  <CreativeStudioApp
+                    addNotification={addNotification}
+                    accentText={desktopTheme === "neon" ? "text-cyan-400" : "text-rose-400"}
+                    desktopTheme={desktopTheme}
+                    thinkingMode={thinkingMode}
+                    setThinkingMode={setThinkingMode}
+                  />
+                );
+              }
+
+              return (
+                <AppWindow
+                  key={appId}
+                  id={appId}
+                  title={appTitle}
+                  theme={desktopTheme}
+                  onClose={() => closeWindow(appId)}
+                  initialX={appId === "explorer" ? 80 : appId === "notes" ? 180 : appId === "phone" ? 280 : appId === "creative" ? 50 : 380}
+                  initialY={appId === "explorer" ? 80 : appId === "notes" ? 140 : appId === "phone" ? 200 : appId === "creative" ? 50 : 260}
+                  width={appId === "creative" ? "w-[720px]" : "w-[500px]"}
+                  height={appId === "creative" ? "h-[540px]" : "h-[400px]"}
+                >
+                  {appContent}
+                </AppWindow>
+              );
+            })}
+
+            {/* Conversation sidebar */}
+            <AssistantDrawer
+              isOpen={isAssistantDrawerOpen}
+              onClose={() => setIsAssistantDrawerOpen(false)}
+              messages={mappedChatMessages}
+              sendMessage={(txt) => sendTextMessage(undefined, txt)}
+              sessionState={sessionState}
+              toggleMic={toggleVoiceInput}
+              isMicActive={isListening}
+              theme={desktopTheme}
+              transcription={textInput}
+              triggerVoicePrompt={triggerVoicePrompt}
+            />
+
+            {/* Bottom Desktop Taskbar */}
+            <Taskbar
+              theme={desktopTheme}
+              openStartMenu={() => setIsStartMenuOpen(true)}
+              openNotificationCenter={() => setIsNotificationCenterOpen(true)}
+              unreadNotificationsCount={notifications.filter(n => !n.read).length}
+              openWindow={openWindow}
+              activeWindows={activeWindows}
+              batteryLevel={phoneState.batteryLevel}
+              ramUsage={phoneState.ramUsage}
+              wifiOn={phoneState.wifiOn}
+              avatarState={sessionState}
+            />
+
+            {/* Start Menu Panel */}
+            <StartMenu
+              theme={desktopTheme}
+              isOpen={isStartMenuOpen}
+              onClose={() => setIsStartMenuOpen(false)}
+              user={user}
+              openWindow={openWindow}
+              signInWithGoogle={signInWithGoogle}
+              logOut={logOut}
+              tasksCount={notes.filter(n => !n.completed).length}
+              triggerVoicePrompt={triggerVoicePrompt}
+              toggleDesktopMode={() => setIsDesktopMode(false)}
+            />
+
+            {/* Quick settings and notifications panel */}
+            <NotificationCenter
+              theme={desktopTheme}
+              isOpen={isNotificationCenterOpen}
+              onClose={() => setIsNotificationCenterOpen(false)}
+              notifications={notifications}
+              clearNotifications={clearNotifications}
+              markNotificationAsRead={markNotificationAsRead}
+              phoneState={phoneState}
+              updatePhoneState={setPhoneState}
+              selectedLanguage={selectedLanguage}
+              changeLanguage={setSelectedLanguage}
+              uiTheme={desktopTheme}
+              changeTheme={setDesktopTheme}
+              personality={personality}
+              changePersonality={setPersonality}
+              voiceSpeed={voiceSpeed}
+              changeVoiceSpeed={setVoiceSpeed}
+              companion={activeMate}
+              changeCompanion={setActiveMate}
+            />
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className={`relative min-h-screen w-full bg-[#07070b] text-white flex flex-col items-center justify-between p-4 overflow-x-hidden font-sans select-none ${uiTheme === "jarvis" ? "selection:bg-cyan-500/30" : isSassy ? "selection:bg-purple-500/30" : "selection:bg-rose-500/30"}`}>
+    <div className={`relative min-h-screen w-full bg-[#07070b] text-white flex flex-col items-center justify-between p-4 overflow-x-hidden font-sans select-none transition-all duration-1000 ease-in-out ${uiTheme === "jarvis" ? "selection:bg-cyan-500/30" : isSassy ? "selection:bg-purple-500/30" : "selection:bg-rose-500/30"}`}>
       
       {/* Hidden screen-reader live announcements for accessibility (e.g. TalkBack / Voice Access on Vivo Y2140) */}
       <div id="aria-status-announcer" className="sr-only" aria-live="polite">
         {ariaAnnouncement}
       </div>
 
+      {/* Cinematic theme transition ripple effect */}
+      {themeTransitioning && (
+        <motion.div
+          initial={{ opacity: 0.9, scale: 0.6 }}
+          animate={{ opacity: 0, scale: 2 }}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+          className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden"
+        >
+          <div className={`w-[500px] h-[500px] rounded-full filter blur-3xl opacity-40 ${
+            uiTheme === "jarvis" ? "bg-cyan-500 shadow-[0_0_120px_rgba(6,182,212,0.6)]" :
+            uiTheme === "sassy" ? "bg-purple-500 shadow-[0_0_120px_rgba(168,85,247,0.6)]" :
+            "bg-rose-500 shadow-[0_0_120px_rgba(244,63,94,0.6)]"
+          }`} />
+        </motion.div>
+      )}
+
       {/* Dynamic 3D holographic background images */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        {uiTheme === "jarvis" ? (
-          <>
-            {/* Highly sophisticated metallic cybertech background for Jarvis 4.0 */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15)_0%,rgba(7,7,11,1)_80%)] z-0" />
-            <div 
-              className="absolute inset-0 opacity-15"
-              style={{
-                backgroundImage: `radial-gradient(circle, rgba(6,182,212,0.3) 1px, transparent 1px)`,
-                backgroundSize: '24px 24px',
-              }}
-            />
-            {/* Premium Metallic scanline effect */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/[0.02] to-transparent bg-[size:100%_4px] opacity-40 animate-pulse" />
-            
-            {/* Beautiful holographic Jarvis Logo pulsing gently */}
-            <img
-              src={rajeshJarvisLogo}
-              alt="Rajesh Jarvis 4.0 Logo"
-              referrerPolicy="no-referrer"
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
-                sessionState !== "disconnected" ? "opacity-35 scale-100 blur-[1px]" : "opacity-20 scale-95 blur-[3px]"
-              }`}
-            />
-          </>
-        ) : (
-          <>
-            <img
-              src={mayraBgInactive}
-              alt="Mayra Inactive BG"
-              referrerPolicy="no-referrer"
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
-                sessionState === "disconnected" ? "opacity-35 scale-100 blur-[2px]" : "opacity-0 scale-105 blur-[4px]"
-              }`}
-            />
-            <img
-              src={mayraBgActive}
-              alt="Mayra Active BG"
-              referrerPolicy="no-referrer"
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
-                sessionState !== "disconnected" ? "opacity-45 scale-100" : "opacity-0 scale-95"
-              }`}
-            />
-          </>
-        )}
+        {/* Jarvis Background Layer */}
+        <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${uiTheme === "jarvis" ? "opacity-100" : "opacity-0"}`}>
+          {/* Highly sophisticated metallic cybertech background for Jarvis 4.0 */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15)_0%,rgba(7,7,11,1)_80%)] z-0" />
+          <div 
+            className="absolute inset-0 opacity-15"
+            style={{
+              backgroundImage: `radial-gradient(circle, rgba(6,182,212,0.3) 1px, transparent 1px)`,
+              backgroundSize: '24px 24px',
+            }}
+          />
+          {/* Premium Metallic scanline effect */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/[0.02] to-transparent bg-[size:100%_4px] opacity-40 animate-pulse" />
+          
+          {/* Beautiful holographic Jarvis Logo pulsing gently */}
+          <img
+            src={rajeshJarvisLogo}
+            alt="Rajesh Jarvis 4.0 Logo"
+            referrerPolicy="no-referrer"
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+              sessionState !== "disconnected" ? "opacity-35 scale-100 blur-[1px]" : "opacity-20 scale-95 blur-[3px]"
+            }`}
+          />
+        </div>
+
+        {/* Zoya Background Layer (Rose & Sassy) */}
+        <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${uiTheme !== "jarvis" ? "opacity-100" : "opacity-0"}`}>
+          <img
+            src={zoyaBgInactive}
+            alt="Zoya Inactive BG"
+            referrerPolicy="no-referrer"
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+              sessionState === "disconnected" ? "opacity-35 scale-100 blur-[2px]" : "opacity-0 scale-105 blur-[4px]"
+            }`}
+          />
+          <img
+            src={zoyaBgActive}
+            alt="Zoya Active BG"
+            referrerPolicy="no-referrer"
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+              sessionState !== "disconnected" ? "opacity-45 scale-100" : "opacity-0 scale-95"
+            }`}
+          />
+        </div>
+
         {/* Ambient dark veil and vignette overlay to ensure high contrast */}
         <div className="absolute inset-0 bg-[#07070b]/80" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-transparent to-[#07070b]/70" />
@@ -1335,26 +2155,26 @@ export default function App() {
       <header className="w-full max-w-xl flex items-center justify-between z-10 py-2 animate-fade-in">
         <div className="flex items-center gap-2.5">
           <div className="relative flex items-center justify-center">
-            <div className={`relative w-8 h-8 rounded-full overflow-hidden border ${isSassy ? "border-purple-500/30 bg-purple-950/25" : "border-rose-500/30 bg-rose-950/25"} ${sessionState === "speaking" ? `ring-2 ${isSassy ? "ring-purple-500" : "ring-rose-500"} animate-pulse` : ""}`}>
+            <div className={`relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-500 ease-in-out ${uiTheme === "jarvis" ? "border-cyan-500/30 bg-cyan-950/25" : isSassy ? "border-purple-500/30 bg-purple-950/25" : "border-rose-500/30 bg-rose-950/25"} ${sessionState === "speaking" ? `ring-2 ${uiTheme === "jarvis" ? "ring-cyan-500" : isSassy ? "ring-purple-500" : "ring-rose-500"} animate-pulse` : ""}`}>
               <img
-                src={mayraLogo}
-                alt="Mayra Avatar Logo"
+                src={zoyaLogo}
+                alt="Zoya Avatar Logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className={`absolute inset-0 ${isSassy ? "bg-purple-500/20" : "bg-rose-500/20"} blur-sm rounded-full animate-ping pointer-events-none opacity-50`} />
+            <div className={`absolute inset-0 transition-colors duration-500 ${uiTheme === "jarvis" ? "bg-cyan-500/20" : isSassy ? "bg-purple-500/20" : "bg-rose-500/20"} blur-sm rounded-full animate-ping pointer-events-none opacity-50`} />
           </div>
           <div className="flex flex-col text-left">
-            <span className={`font-bold tracking-wider text-sm bg-gradient-to-r ${themeGradientText} bg-clip-text text-transparent leading-none`}>
-              MAYRA AI
+            <span className={`font-bold tracking-wider text-sm bg-gradient-to-r ${themeGradientText} bg-clip-text text-transparent leading-none transition-all duration-500`}>
+              ZOYA AI
             </span>
             <div className="flex items-center gap-1.5 mt-0.5 select-none">
               <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
                 {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
               </span>
               {accessibilityMode && (
-                <span id="mobile-mode-indicator" className={`text-[8px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${isSassy ? "bg-purple-500/25 text-purple-300 border border-purple-500/20" : "bg-rose-500/25 text-rose-300 border border-rose-500/20"} animate-pulse flex items-center gap-0.5`}>
+                <span id="mobile-mode-indicator" className={`text-[8px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full transition-all duration-500 ${uiTheme === "jarvis" ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/20" : isSassy ? "bg-purple-500/25 text-purple-300 border border-purple-500/20" : "bg-rose-500/25 text-rose-300 border border-rose-500/20"} animate-pulse flex items-center gap-0.5`}>
                   <Smartphone className="w-2 h-2 text-amber-400 animate-bounce" /> vivo-active
                 </span>
               )}
@@ -1366,7 +2186,7 @@ export default function App() {
           {user ? (
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-[10px] text-gray-300 font-medium">{user.displayName || "Handsome"}</span>
+                <span className="text-[10px] text-gray-300 font-medium">{user.displayName || customNickname || "Rajesh"}</span>
                 <button
                   onClick={logOut}
                   className="text-[9px] text-gray-500 hover:text-rose-400 cursor-pointer underline transition"
@@ -1376,8 +2196,8 @@ export default function App() {
               </div>
               <img
                 src={user.photoURL || "https://www.gstatic.com/images/branding/product/2x/avatar_anonymous_120_120.png"}
-                alt={user.displayName || "User"}
-                className={`w-7 h-7 rounded-full border ${isSassy ? "border-purple-500/30" : "border-rose-500/30"} cursor-pointer hover:opacity-85 transition`}
+                alt={user.displayName || customNickname || "User"}
+                className={`w-7 h-7 rounded-full border transition-all duration-500 ${uiTheme === "jarvis" ? "border-cyan-500/30" : isSassy ? "border-purple-500/30" : "border-rose-500/30"} cursor-pointer hover:opacity-85`}
                 title="Log out"
                 onClick={logOut}
               />
@@ -1385,15 +2205,15 @@ export default function App() {
           ) : (
             <button
               onClick={signInWithGoogle}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] uppercase tracking-widest font-mono font-bold bg-white/5 border border-white/10 hover:bg-white/10 ${themeAccentText} transition cursor-pointer`}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] uppercase tracking-widest font-mono font-bold bg-white/5 border border-white/10 hover:bg-white/10 ${themeAccentText} transition duration-500 cursor-pointer`}
             >
               Sign In
             </button>
           )}
 
           {sessionState !== "disconnected" && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${isSassy ? "bg-purple-500/10 border border-purple-500/20 text-purple-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"} text-[10px] uppercase tracking-widest font-mono`}>
-              <span className={`w-2 h-2 rounded-full ${sessionState === "speaking" ? (isSassy ? "bg-purple-500 animate-pulse" : "bg-rose-500 animate-pulse") : "bg-emerald-500"}`} />
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all duration-500 ${uiTheme === "jarvis" ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400" : isSassy ? "bg-purple-500/10 border border-purple-500/20 text-purple-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"} text-[10px] uppercase tracking-widest font-mono`}>
+              <span className={`w-2 h-2 rounded-full transition-colors duration-500 ${sessionState === "speaking" ? (uiTheme === "jarvis" ? "bg-cyan-500 animate-pulse" : isSassy ? "bg-purple-500 animate-pulse" : "bg-rose-500 animate-pulse") : "bg-emerald-500"}`} />
               {sessionState}
             </div>
           )}
@@ -1405,7 +2225,7 @@ export default function App() {
                 ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 animate-pulse"
                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
             }`}
-            title="Install Mayra AI App"
+            title="Install Zoya AI App"
           >
             <Download className="w-4.5 h-4.5" />
             <span className="text-[9px] font-bold font-mono uppercase hidden sm:inline-block">Install App</span>
@@ -1425,12 +2245,12 @@ export default function App() {
       <main className="w-full max-w-xl flex-1 flex flex-col items-center justify-start gap-4 z-10 my-4">
         
         {/* Tab switcher bar */}
-        <div className="flex bg-white/[0.03] border border-white/10 rounded-full p-1.5 w-full max-w-xl mb-2 backdrop-blur-md">
+        <div className="flex bg-white/[0.03] border border-white/10 rounded-full p-1.5 w-full max-w-xl mb-2 backdrop-blur-md transition-all duration-500 ease-in-out">
           <button
             onClick={() => setActiveTab("voice")}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-500 cursor-pointer ${
               activeTab === "voice"
-                ? `bg-gradient-to-r ${isSassy ? "from-purple-500/20 to-amber-500/20 border-purple-500/30 text-amber-300" : "from-rose-500/20 to-pink-500/20 border-rose-500/30 text-rose-300"} shadow-md ${isSassy ? "shadow-purple-500/5" : "shadow-rose-500/5"}`
+                ? `bg-gradient-to-r ${themeGradientBtnSelected} shadow-md ${themeShadow}`
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
@@ -1438,29 +2258,19 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab("chat")}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-500 cursor-pointer ${
               activeTab === "chat"
-                ? `bg-gradient-to-r ${isSassy ? "from-purple-500/20 to-amber-500/20 border-purple-500/30 text-amber-300" : "from-rose-500/20 to-pink-500/20 border-rose-500/30 text-rose-300"} shadow-md ${isSassy ? "shadow-purple-500/5" : "shadow-rose-500/5"}`
+                ? `bg-gradient-to-r ${themeGradientBtnSelected} shadow-md ${themeShadow}`
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" /> Chat
           </button>
           <button
-            onClick={() => setActiveTab("music")}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
-              activeTab === "music"
-                ? `bg-gradient-to-r ${isSassy ? "from-purple-500/20 to-amber-500/20 border-purple-500/30 text-amber-300" : "from-rose-500/20 to-pink-500/20 border-rose-500/30 text-rose-300"} shadow-md ${isSassy ? "shadow-purple-500/5" : "shadow-rose-500/5"}`
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Music className="w-3.5 h-3.5" /> AI Music
-          </button>
-          <button
             onClick={() => setActiveTab("triggers")}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-[10px] font-semibold tracking-wider uppercase transition-all duration-500 cursor-pointer ${
               activeTab === "triggers"
-                ? `bg-gradient-to-r ${isSassy ? "from-purple-500/20 to-amber-500/20 border-purple-500/30 text-amber-300" : "from-rose-500/20 to-pink-500/20 border-rose-500/30 text-rose-300"} shadow-md ${isSassy ? "shadow-purple-500/5" : "shadow-rose-500/5"}`
+                ? `bg-gradient-to-r ${themeGradientBtnSelected} shadow-md ${themeShadow}`
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
@@ -1470,8 +2280,8 @@ export default function App() {
 
         {activeTab === "voice" ? (
           <div className="w-full flex flex-col items-center gap-6 animate-fade-in">
-            {/* Real-time date and time bento-box widget */}
-            <div className={`flex items-center justify-between gap-4 py-2 px-4 rounded-xl bg-white/[0.02] border ${themeBorder20} backdrop-blur-md w-full max-w-sm shadow-md animate-fade-in`}>
+            {/* Real-time date, time and battery bento-box widget */}
+            <div className={`flex items-center justify-between gap-4 py-2 px-4 rounded-xl bg-white/[0.02] border transition-all duration-500 ${themeBorder20} backdrop-blur-md w-full max-w-sm shadow-md animate-fade-in`}>
               <div className="flex flex-col text-left">
                 <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold font-mono">Current Date</span>
                 <span className="text-xs font-semibold text-white mt-0.5 font-mono select-none">
@@ -1479,8 +2289,27 @@ export default function App() {
                 </span>
               </div>
               <div className="h-8 w-[1px] bg-white/10 shrink-0" />
+              
+              <div className="flex flex-col text-center">
+                <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold font-mono">Battery</span>
+                <div className="flex items-center gap-1 mt-0.5 select-none justify-center">
+                  {phoneState.isCharging ? (
+                    <BatteryCharging className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  ) : phoneState.batteryLevel <= 20 ? (
+                    <Battery className="w-3.5 h-3.5 text-rose-500 animate-bounce" />
+                  ) : (
+                    <Battery className={`w-3.5 h-3.5 transition-colors duration-500 ${themeAccentHighlight}`} />
+                  )}
+                  <span className="text-xs font-bold font-mono text-white">
+                    {phoneState.batteryLevel}%
+                  </span>
+                </div>
+              </div>
+              
+              <div className="h-8 w-[1px] bg-white/10 shrink-0" />
+              
               <div className="flex flex-col text-right">
-                <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold font-mono">Real-Time Clock</span>
+                <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold font-mono">Clock</span>
                 <span className={`text-xs font-bold font-mono ${themeAccentText} mt-0.5 tracking-wider select-none`}>
                   {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                 </span>
@@ -1496,11 +2325,11 @@ export default function App() {
                 sessionState === "speaking" ? themeActiveBorderFrame :
                 themeIdleBorderFrame
               }`}>
-                {/* Mayra Center Holographic Avatar Logo */}
+                {/* Zoya Center Holographic Avatar Logo */}
                 <div className="absolute inset-4 rounded-full overflow-hidden bg-[#0c0c14]/40 backdrop-blur-md flex items-center justify-center">
                   <img
-                    src={mayraLogo}
-                    alt="Mayra AI holographic avatar"
+                    src={zoyaLogo}
+                    alt="Zoya AI holographic avatar"
                     referrerPolicy="no-referrer"
                     className={`w-full h-full object-cover transition-all duration-700 ${
                       sessionState === "disconnected" ? "opacity-25 saturate-50 blur-[1px]" :
@@ -1514,8 +2343,8 @@ export default function App() {
 
                 {/* Tech dial ornaments */}
                 <div className="absolute inset-2 rounded-full border border-dashed border-white/10 pointer-events-none" />
-                <div className={`absolute top-0 w-3 h-1.5 ${isSassy ? "bg-amber-500" : "bg-rose-500"} rounded-full -translate-y-0.5 pointer-events-none`} />
-                <div className={`absolute bottom-0 w-3 h-1.5 ${isSassy ? "bg-amber-500" : "bg-rose-500"} rounded-full translate-y-0.5 pointer-events-none`} />
+                <div className={`absolute top-0 w-3 h-1.5 transition-colors duration-500 ${themeAccentBg} rounded-full -translate-y-0.5 pointer-events-none`} />
+                <div className={`absolute bottom-0 w-3 h-1.5 transition-colors duration-500 ${themeAccentBg} rounded-full translate-y-0.5 pointer-events-none`} />
               </div>
 
               <WaveformVisualizer audioService={audioService} state={sessionState} style={waveformStyle} uiTheme={uiTheme} />
@@ -1524,11 +2353,11 @@ export default function App() {
             {/* Personality text line */}
             <div className="w-full px-6 text-center max-w-md min-h-[5rem] flex flex-col justify-center">
               <div className="relative">
-                <Sparkles className={`absolute -top-4 -left-2 w-4 h-4 ${isSassy ? "text-amber-400/40" : "text-fuchsia-400/40"}`} />
+                <Sparkles className={`absolute -top-4 -left-2 w-4 h-4 transition-colors duration-500 ${uiTheme === "jarvis" ? "text-cyan-400/40" : isSassy ? "text-amber-400/40" : "text-fuchsia-400/40"}`} />
                 <p className="text-gray-300 font-medium text-base md:text-lg tracking-wide leading-relaxed drop-shadow">
                   "{sassyQuote}"
                 </p>
-                <Sparkles className={`absolute -bottom-4 -right-2 w-4 h-4 ${isSassy ? "text-purple-400/40" : "text-rose-400/40"}`} />
+                <Sparkles className={`absolute -bottom-4 -right-2 w-4 h-4 transition-colors duration-500 ${uiTheme === "jarvis" ? "text-cyan-400/40" : isSassy ? "text-purple-400/40" : "text-rose-400/40"}`} />
               </div>
             </div>
 
@@ -1561,7 +2390,7 @@ export default function App() {
                         href={action.args.url}
                         target="_blank"
                         rel="noreferrer"
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg ${themeBg15} border ${themeBorder30} ${themeAccentText} text-xs font-medium hover:${isSassy ? "bg-purple-500/35" : "bg-rose-500/35"} transition`}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg ${themeBg15} border ${themeBorder30} ${themeAccentText} text-xs font-medium hover:${uiTheme === "jarvis" ? "bg-cyan-500/35" : isSassy ? "bg-purple-500/35" : "bg-rose-500/35"} transition`}
                       >
                         Open <ExternalLink className="w-3 h-3" />
                       </a>
@@ -1620,16 +2449,16 @@ export default function App() {
                     msg.role === "user" ? "items-end" : "items-start"
                   } animate-slide-up`}
                 >
-                  <div className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed text-left relative overflow-hidden shadow-lg border border-white/5 ${
-                    msg.role === "user" ? (isSassy ? "bg-purple-500/10 border-purple-500/20" : "bg-rose-500/10 border-rose-500/20") : "bg-white/[0.03]"
+                  <div className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed text-left relative overflow-hidden shadow-lg border border-white/5 transition-all duration-500 ${
+                    msg.role === "user" ? (uiTheme === "jarvis" ? "bg-cyan-500/10 border-cyan-500/20" : isSassy ? "bg-purple-500/10 border-purple-500/20" : "bg-rose-500/10 border-rose-500/20") : "bg-white/[0.03]"
                   }`}>
                     {msg.role === "model" ? (
                       <div>
-                        <div className={`absolute top-0 left-0 w-1 h-full ${isSassy ? "bg-purple-500" : "bg-rose-500"}`} />
+                        <div className={`absolute top-0 left-0 w-1 h-full transition-colors duration-500 ${themeAccentBg}`} />
                         <p className="text-gray-100">{msg.text}</p>
                       </div>
                     ) : (
-                      <p className={`${isSassy ? "text-purple-200" : "text-rose-200"} font-medium`}>{msg.text}</p>
+                      <p className={`${uiTheme === "jarvis" ? "text-cyan-200" : isSassy ? "text-purple-200" : "text-rose-200"} font-medium transition-colors duration-500`}>{msg.text}</p>
                     )}
 
                     {/* Google Maps grounding cards inside Zoya's response */}
@@ -1649,7 +2478,7 @@ export default function App() {
                             return (
                               <div
                                 key={cIdx}
-                                className={`p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:${isSassy ? "border-purple-500/30" : "border-rose-500/30"} transition-all duration-300`}
+                                className={`p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:${uiTheme === "jarvis" ? "border-cyan-500/30" : isSassy ? "border-purple-500/30" : "border-rose-500/30"} transition-all duration-500`}
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-xs font-semibold text-white truncate max-w-[200px]">
@@ -1659,7 +2488,7 @@ export default function App() {
                                     href={link}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded ${themeBg15} border ${themeBorder30} text-[10px] ${themeAccentText} font-semibold hover:${isSassy ? "bg-purple-500/35" : "bg-rose-500/35"} transition shrink-0`}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded ${themeBg15} border ${themeBorder30} text-[10px] ${themeAccentText} font-semibold hover:${uiTheme === "jarvis" ? "bg-cyan-500/35" : isSassy ? "bg-purple-500/35" : "bg-rose-500/35"} transition-all duration-500 shrink-0`}
                                   >
                                     View <ExternalLink className="w-2.5 h-2.5" />
                                   </a>
@@ -1682,9 +2511,9 @@ export default function App() {
               {isTyping && (
                 <div className="flex items-start">
                   <div className="rounded-2xl p-3 bg-white/[0.02] border border-white/5 flex items-center gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSassy ? "bg-purple-500" : "bg-rose-500"} animate-bounce`} />
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSassy ? "bg-purple-500" : "bg-rose-500"} animate-bounce [animation-delay:0.2s]`} />
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSassy ? "bg-purple-500" : "bg-rose-500"} animate-bounce [animation-delay:0.4s]`} />
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${themeAccentBg} animate-bounce`} />
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${themeAccentBg} animate-bounce [animation-delay:0.2s]`} />
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${themeAccentBg} animate-bounce [animation-delay:0.4s]`} />
                   </div>
                 </div>
               )}
@@ -1716,8 +2545,10 @@ export default function App() {
                     href={typeof window !== "undefined" ? window.location.href : "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${
-                      isSassy
+                    className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all duration-500 ${
+                      uiTheme === "jarvis"
+                        ? "bg-cyan-600/30 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-600/50"
+                        : isSassy
                         ? "bg-purple-600/30 border border-purple-500/40 text-purple-200 hover:bg-purple-600/50"
                         : "bg-rose-600/30 border border-rose-500/40 text-rose-200 hover:bg-rose-600/50"
                     }`}
@@ -1743,7 +2574,7 @@ export default function App() {
                       : "Say something flirty or ask for places..."
                   }
                   disabled={isListening}
-                  className={`w-full bg-white/5 border border-white/10 rounded-xl pl-3.5 pr-10 py-2 text-sm text-white focus:outline-none focus:${isSassy ? "border-purple-500/50" : "border-rose-500/50"} transition font-sans disabled:opacity-80`}
+                  className={`w-full bg-white/5 border border-white/10 rounded-xl pl-3.5 pr-10 py-2 text-sm text-white focus:outline-none ${themeFocusBorder} transition-all duration-500 font-sans disabled:opacity-80`}
                 />
                 <button
                   type="button"
@@ -1775,131 +2606,6 @@ export default function App() {
               </button>
             </form>
           </div>
-        ) : activeTab === "music" ? (
-          <div className="w-full flex-1 flex flex-col min-h-[440px] w-full bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md overflow-hidden animate-fade-in p-4 text-left space-y-4">
-            <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-              <div className={`p-2 rounded-lg ${themeBg15} border ${themeBorder30}`}>
-                <Music className={`w-5 h-5 ${themeAccentHighlight}`} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-white">AI Music Synthesizer (Lyria)</h2>
-                <p className="text-[10px] text-gray-400">Generate high-fidelity audio tracks with Google Lyria</p>
-              </div>
-            </div>
-
-            {/* Paid key tier info banner */}
-            <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 text-xs text-gray-400 leading-normal flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-white">Billing Information: </span>
-                Lyria Clip & Pro require a paid Gemini API key. Make sure to configure your <code className="text-amber-300 font-mono">GEMINI_API_KEY</code> with access to Lyria models under AI Studio Secrets if not already provisioned.
-              </div>
-            </div>
-
-            {/* Music Prompt Inputs */}
-            <div className="space-y-3 flex-1 flex flex-col justify-start">
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                  Model Type
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMusicModel("lyria-3-clip-preview")}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      musicModel === "lyria-3-clip-preview"
-                        ? `${themeBg20} border-purple-500/40 text-purple-200`
-                        : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    🎵 Lyria Clip (Up to 30s)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMusicModel("lyria-3-pro-preview")}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      musicModel === "lyria-3-pro-preview"
-                        ? `${themeBg20} border-purple-500/40 text-purple-200`
-                        : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    🎸 Lyria Pro (Full Track)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                  Describe your vibe
-                </label>
-                <textarea
-                  value={musicPrompt}
-                  onChange={(e) => setMusicPrompt(e.target.value)}
-                  placeholder="e.g. A gorgeous, cinematic lo-fi orchestral hip-hop beat for relaxing with deep violin accents..."
-                  rows={3}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500/50 transition font-sans resize-none"
-                />
-              </div>
-
-              {musicError && (
-                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/20 text-xs text-rose-300">
-                  {musicError}
-                </div>
-              )}
-
-              {/* Music Player & Lyrics section when generated */}
-              {generatedAudioUrl && (
-                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-3 animate-scale-up">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Track successfully synthesized!
-                    </span>
-                    <a
-                      href={generatedAudioUrl}
-                      download="lyria-ai-music.wav"
-                      className={`text-xs px-2.5 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 ${themeAccentText} transition`}
-                    >
-                      Download
-                    </a>
-                  </div>
-                  <audio src={generatedAudioUrl} controls className="w-full h-8 rounded bg-white/5" />
-                  
-                  {generatedLyrics && (
-                    <div className="border-t border-white/5 pt-3">
-                      <span className="text-[10px] font-mono tracking-wider text-gray-500 uppercase block mb-1">Generated Lyrics / Track Details</span>
-                      <p className="text-xs text-gray-300 italic whitespace-pre-line leading-relaxed max-h-24 overflow-y-auto pr-1">
-                        {generatedLyrics}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGenerateMusic}
-              disabled={isGeneratingMusic || !musicPrompt.trim()}
-              className={`w-full py-3 rounded-xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
-                isGeneratingMusic || !musicPrompt.trim()
-                  ? "bg-white/5 border-white/5 text-white/20 cursor-not-allowed"
-                  : themeSubmitBtnActive
-              }`}
-            >
-              {isGeneratingMusic ? (
-                <>
-                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  Synthesizing Lyria melody...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4.5 h-4.5 text-amber-400" />
-                  Synthesize AI Music Vibe 🎵
-                </>
-              )}
-            </button>
-          </div>
         ) : activeTab === "triggers" ? (
           <div className="w-full flex-1 flex flex-col gap-4 min-h-[440px] w-full bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md p-5 overflow-hidden animate-fade-in text-left">
             {/* Sub-tabs Selector */}
@@ -1930,7 +2636,7 @@ export default function App() {
                     Custom Voice Triggers
                   </h2>
                   <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                    Configure your custom hotwords! Whenever you say or type <span className={`font-semibold ${themeAccentHighlight}`}>"open [trigger]"</span>, Mayra will launch that website instantly in a new tab.
+                    Configure your custom hotwords! Whenever you say or type <span className={`font-semibold ${themeAccentHighlight}`}>"open [trigger]"</span>, Zoya will launch that website instantly in a new tab.
                   </p>
                 </div>
 
@@ -1940,7 +2646,7 @@ export default function App() {
                   <div className="text-xs text-gray-300 space-y-1">
                     <p className="font-semibold text-white">💡 Pro Tip: Program by Voice or Chat!</p>
                     <p className="text-gray-400 leading-normal">
-                      You can literally tell Mayra: <span className="text-white italic">"Mayra, program trigger 'news' for bbc.com"</span> or write it in the chat tab. She'll configure it on the fly! 😉
+                      You can literally tell Zoya: <span className="text-white italic">"Zoya, program trigger 'news' for bbc.com"</span> or write it in the chat tab. She'll configure it on the fly! 😉
                     </p>
                   </div>
                 </div>
@@ -2059,7 +2765,7 @@ export default function App() {
                     Power Memory Card
                   </h2>
                   <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                    Store persistent, long-term personal facts, preferences, and commands. Mayra references these instantly to build a deep companion bond (more advanced than Jarvis AI!).
+                    Store persistent, long-term personal facts, preferences, and commands. Zoya references these instantly to build a deep companion bond (more advanced than Jarvis AI!).
                   </p>
                 </div>
 
@@ -2113,7 +2819,7 @@ export default function App() {
                   </h3>
                   {memories.length === 0 ? (
                     <div className="p-8 text-center text-xs text-gray-500 italic bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
-                      Your Power Memory Card is currently empty, handsome. Add a fact above, or tell Mayra about yourself in Chat so she stores it automatically! 😉
+                      Your Power Memory Card is currently empty, handsome. Add a fact above, or tell Zoya about yourself in Chat so she stores it automatically! 😉
                     </div>
                   ) : (
                     memories.map((m) => (
@@ -2156,12 +2862,35 @@ export default function App() {
         {/* Global error block */}
         {errorMessage && (
           <div className="w-full px-4 animate-bounce">
-            <div className={`flex items-start gap-2.5 p-3 rounded-xl ${isSassy ? "bg-purple-500/10 border border-purple-500/30 text-purple-200" : "bg-rose-500/10 border border-rose-500/30 text-rose-200"} text-sm`}>
-              <AlertCircle className={`w-5 h-5 ${themeAccentHighlight} shrink-0 mt-0.5`} />
-              <div className="text-left">
-                <span className="font-semibold block mb-0.5">Whoops, honey!</span>
-                <p className={`text-xs ${themeAccentHighlightMuted}`}>{errorMessage}</p>
+            <div className={`flex flex-col gap-2.5 p-3 rounded-xl ${isSassy ? "bg-purple-500/10 border border-purple-500/30 text-purple-200" : "bg-rose-500/10 border border-rose-500/30 text-rose-200"} text-sm`}>
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className={`w-5 h-5 ${themeAccentHighlight} shrink-0 mt-0.5`} />
+                <div className="text-left flex-1">
+                  <span className="font-semibold block mb-0.5">Whoops, honey!</span>
+                  <p className={`text-xs ${themeAccentHighlightMuted}`}>{errorMessage}</p>
+                </div>
               </div>
+              {/* Smart Standalone trigger diagnostic when mic permission fails */}
+              {(errorMessage.toLowerCase().includes("permission") || errorMessage.toLowerCase().includes("mic") || errorMessage.toLowerCase().includes("microphone") || errorMessage.toLowerCase().includes("hear")) && (
+                <div className="mt-1 pt-2 border-t border-white/5 flex flex-col gap-1.5 text-left">
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    💡 Browser frames (iframes) heavily restrict microphone capturing for security. Launching the assistant in its own browser window resolves this constraint immediately:
+                  </p>
+                  <a
+                    href={typeof window !== "undefined" ? window.location.href : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-[11px] font-bold uppercase transition ${
+                      isSassy
+                        ? "bg-purple-600/30 border border-purple-500/40 text-purple-200 hover:bg-purple-600/50"
+                        : "bg-rose-600/30 border border-rose-500/40 text-rose-200 hover:bg-rose-600/50"
+                    }`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Standalone Tab</span>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2197,7 +2926,7 @@ export default function App() {
                   ? themePowerBtnDisconnected
                   : "bg-white border border-white text-black shadow-white/10"
               }`}
-              title={sessionState === "disconnected" ? "Connect with Mayra" : "Close session"}
+              title={sessionState === "disconnected" ? "Connect with Zoya" : "Close session"}
             >
               <Power className="w-8 h-8" />
             </button>
@@ -2212,7 +2941,7 @@ export default function App() {
                 }
               }}
               className="p-3.5 rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
-              title="Wink at Mayra"
+              title="Wink at Zoya"
             >
               <Heart className={`w-5 h-5 ${isSassy ? "text-amber-400 fill-amber-400/10" : "text-rose-400 fill-rose-400/10"}`} />
             </button>
@@ -2221,9 +2950,9 @@ export default function App() {
           {/* Dynamic visual status footer label */}
           <p className="text-[10px] font-mono tracking-widest text-gray-500 uppercase">
             {sessionState === "disconnected" && "Tap center node to connect"}
-            {sessionState === "connecting" && "Summoning Mayra..."}
-            {sessionState === "listening" && "Mayra is listening to you"}
-            {sessionState === "speaking" && "Mayra is sharing her wisdom"}
+            {sessionState === "connecting" && "Summoning Zoya..."}
+            {sessionState === "listening" && "Zoya is listening to you"}
+            {sessionState === "speaking" && "Zoya is sharing her wisdom"}
           </p>
         </footer>
       )}
@@ -2242,23 +2971,23 @@ export default function App() {
             <div className="flex items-center gap-2.5 mb-3.5">
               <div className={`w-8 h-8 rounded-full overflow-hidden border ${themeBorder30}`}>
                 <img
-                  src={mayraLogo}
-                  alt="Mayra Logo"
+                  src={zoyaLogo}
+                  alt="Zoya Logo"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="text-left">
-                <h2 className="text-base font-semibold text-white">Meet Mayra</h2>
+                <h2 className="text-base font-semibold text-white">Meet Zoya</h2>
                 <span className={`text-[9px] uppercase tracking-wider ${themeAccentHighlight} font-bold block leading-none mt-0.5`}>
-                  AI Companion GF & Agent
+                  AI Voice Assistant & Companion
                 </span>
               </div>
             </div>
 
             <div className="space-y-3.5 text-sm text-gray-300">
               <p className="text-left">
-                Mayra is your highly confident, witty, and sassy AI Girlfriend and Companion Agent. She is responsible for helping you with every task you ask her!
+                Zoya is your highly confident, premium, witty, and sassy AI Voice Assistant. She is responsible for helping you with any tasks, search information, planning, or just sharing some friendly banter!
               </p>
               
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 text-xs text-gray-400 text-left space-y-2">
@@ -2287,8 +3016,8 @@ export default function App() {
                         navigator.vibrate(next ? [80, 50, 80] : 100);
                       }
                     }}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      accessibilityMode ? (isSassy ? "bg-purple-600" : "bg-rose-500") : "bg-white/10"
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-500 ease-in-out focus:outline-none ${
+                      accessibilityMode ? (uiTheme === "jarvis" ? "bg-cyan-600" : isSassy ? "bg-purple-600" : "bg-rose-500") : "bg-white/10"
                     }`}
                     role="switch"
                     aria-checked={accessibilityMode}
@@ -2328,12 +3057,82 @@ export default function App() {
                 </div>
               </div>
 
+              {/* User Name/Nickname configuration */}
+              <div className="border-t border-white/5 pt-3.5 space-y-2">
+                <p className={`text-[11px] font-semibold ${themeAccentText} uppercase tracking-wider text-left flex items-center gap-1.5`}>
+                  👤 Your Name / Nickname
+                </p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="user-nickname-input"
+                    value={customNickname}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomNickname(val);
+                      localStorage.setItem("zoya_custom_nickname", val);
+                    }}
+                    placeholder="Enter your name (e.g. Rajesh)"
+                    className={`w-full py-2 px-3 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none ${themeFocusBorder} transition-all duration-300 font-sans`}
+                  />
+                  {customNickname === "Rajesh" && (
+                    <span className="absolute right-3 top-2.5 text-[10px] text-emerald-400 font-mono font-bold animate-pulse">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Companion Selection */}
+              <div className="border-t border-white/5 pt-3.5 space-y-2 animate-fade-in">
+                <p className={`text-[11px] font-semibold ${themeAccentText} uppercase tracking-wider text-left flex items-center justify-between`}>
+                  <span>🤖 Active Companion Mode</span>
+                  <span className="text-[9px] font-mono opacity-50 font-bold">CHOOSE AGENT</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setActiveMate("maya")}
+                    className={`py-2 px-2.5 rounded-xl border text-xs flex flex-col items-start gap-1 transition-all duration-300 cursor-pointer ${
+                      activeMate === "maya"
+                        ? "bg-gradient-to-br from-rose-500/20 via-purple-500/10 to-transparent border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)] font-bold"
+                        : "bg-white/5 border-transparent opacity-65 hover:opacity-100 text-gray-400"
+                    }`}
+                  >
+                    <span className="text-[11px] flex items-center gap-1.5">
+                      👧 Zoya (Anime Girl)
+                    </span>
+                    <span className="text-[8px] font-mono text-gray-400 font-normal text-left">
+                      Dynamic Live Video Chat
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveMate("oska");
+                      setUiTheme("jarvis");
+                      localStorage.setItem("zoya_ui_theme", "jarvis");
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-xs flex flex-col items-start gap-1 transition-all duration-300 cursor-pointer ${
+                      activeMate === "oska"
+                        ? "bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-transparent border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold"
+                        : "bg-white/5 border-transparent opacity-65 hover:opacity-100 text-gray-400"
+                    }`}
+                  >
+                    <span className="text-[11px] flex items-center gap-1.5">
+                      🧠 Jarvis (AI Intel)
+                    </span>
+                    <span className="text-[8px] font-mono text-gray-400 font-normal text-left">
+                      Elite Assistant & Dashboard
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               {/* UI Theme Selection */}
               <div className="border-t border-white/5 pt-3.5 space-y-2">
                 <p className={`text-[11px] font-semibold ${themeAccentText} uppercase tracking-wider text-left`}>
-                  Mayra's Vibe (UI Theme)
+                  Zoya's Vibe (UI Theme)
                 </p>
-                <div className="grid grid-cols-2 gap-1.5 p-1 bg-white/[0.02] border border-white/5 rounded-xl animate-fade-in">
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-white/[0.02] border border-white/5 rounded-xl animate-fade-in">
                   <button
                     id="theme-opt-rose"
                     onClick={() => {
@@ -2346,7 +3145,7 @@ export default function App() {
                         : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
                     }`}
                   >
-                    🌸 Rose/Pink
+                    🌸 Rose
                   </button>
                   <button
                     id="theme-opt-sassy"
@@ -2360,15 +3159,29 @@ export default function App() {
                         : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
                     }`}
                   >
-                    ⚡ Sassy (Purple/Gold)
+                    ⚡ Sassy
+                  </button>
+                  <button
+                    id="theme-opt-jarvis"
+                    onClick={() => {
+                      setUiTheme("jarvis");
+                      localStorage.setItem("zoya_ui_theme", "jarvis");
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-300 border ${
+                      uiTheme === "jarvis"
+                        ? "bg-gradient-to-r from-cyan-500/25 to-blue-500/25 border-cyan-500/30 text-cyan-300 shadow-sm"
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
+                    }`}
+                  >
+                    🤖 Jarvis
                   </button>
                 </div>
               </div>
 
-              {/* Mayra's Sassy Mood Settings */}
+              {/* Zoya's Sassy Mood Settings */}
               <div className="border-t border-white/5 pt-3.5 space-y-2">
                 <p className={`text-[11px] font-semibold ${themeAccentText} uppercase tracking-wider text-left`}>
-                  Mayra's Sassy Mood Personality
+                  Zoya's Sassy Mood Personality
                 </p>
                 <div className="grid grid-cols-3 gap-1.5 p-1 bg-white/[0.02] border border-white/5 rounded-xl animate-fade-in">
                   <button
@@ -2404,6 +3217,39 @@ export default function App() {
                   >
                     💝 Sweet
                   </button>
+                  <button
+                    id="personality-opt-girlfriend"
+                    onClick={() => setPersonality("girlfriend")}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 border ${
+                      personality === "girlfriend"
+                        ? themeGradientBtnSelected
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
+                    }`}
+                  >
+                    💖 Girlfriend
+                  </button>
+                  <button
+                    id="personality-opt-normal"
+                    onClick={() => setPersonality("normal")}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 border ${
+                      personality === "normal"
+                        ? themeGradientBtnSelected
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
+                    }`}
+                  >
+                    ✨ Normal
+                  </button>
+                  <button
+                    id="personality-opt-romantic"
+                    onClick={() => setPersonality("romantic")}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 border ${
+                      personality === "romantic"
+                        ? themeGradientBtnSelected
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border-transparent"
+                    }`}
+                  >
+                    🌹 Romantic
+                  </button>
                 </div>
               </div>
 
@@ -2436,7 +3282,7 @@ export default function App() {
               {/* Voice Speed Selection */}
               <div className="border-t border-white/5 pt-3.5 space-y-2">
                 <p className={`text-[11px] font-semibold ${themeAccentText} uppercase tracking-wider text-left flex items-center gap-1`}>
-                  <Gauge className="w-3.5 h-3.5" /> Mayra's Talking Speed
+                  <Gauge className="w-3.5 h-3.5" /> Zoya's Talking Speed
                 </p>
                 <div className="grid grid-cols-4 gap-1 p-1 bg-white/[0.02] border border-white/5 rounded-xl animate-fade-in">
                   {([0.75, 1.0, 1.25, 1.5] as const).map((speedOpt) => (
@@ -2496,7 +3342,7 @@ export default function App() {
                   <Cpu className={`w-3.5 h-3.5 ${themeAccentHighlight}`} /> Audio Programming: App Access
                 </p>
                 <p className="text-[10px] text-gray-400 text-left leading-normal">
-                  Toggle or program which apps/websites Mayra can auto-open with voice/chat commands. Say <span className={themeAccentHighlight}>"open [trigger]"</span> to launch.
+                  Toggle or program which apps/websites Zoya can auto-open with voice/chat commands. Say <span className={themeAccentHighlight}>"open [trigger]"</span> to launch.
                 </p>
 
                 {/* List of active apps */}
@@ -2612,7 +3458,7 @@ export default function App() {
                 <Download className="w-5 h-5 animate-bounce" />
               </div>
               <div className="text-left">
-                <h2 className="text-base font-semibold text-white">Install Mayra AI</h2>
+                <h2 className="text-base font-semibold text-white">Install Zoya AI</h2>
                 <span className={`text-[9px] uppercase tracking-wider ${themeAccentHighlight} font-bold block leading-none mt-0.5`}>
                   Save to Home Screen or Desktop
                 </span>
@@ -2621,7 +3467,7 @@ export default function App() {
 
             <div className="space-y-4 text-xs text-gray-300 text-left">
               <p className="leading-normal">
-                Install <strong className="text-white">Mayra AI</strong> to run as a fast, standalone app, with instant voice access, offline capabilities, and no browser URL bars in your way!
+                Install <strong className="text-white">Zoya AI</strong> to run as a fast, standalone app, with instant voice access, offline capabilities, and no browser URL bars in your way!
               </p>
 
               {/* iframe warning */}
@@ -2630,7 +3476,7 @@ export default function App() {
                   ⚠️ Note for Preview Mode:
                 </p>
                 <p>
-                  Browsers block PWA installation inside iframes. You must open Mayra in a standalone window to install her!
+                  Browsers block PWA installation inside iframes. You must open Zoya in a standalone window to install her!
                 </p>
                 <a
                   href={typeof window !== "undefined" ? window.location.href : "#"}
@@ -2644,6 +3490,27 @@ export default function App() {
                 >
                   🚀 Launch Standalone App
                 </a>
+              </div>
+
+              {/* Premium Android APK Download Section */}
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2 text-left">
+                <div className="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-current text-[#3DDC84]" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2a5 5 0 00-4.9 4.1h9.8A5 5 0 0012 2zm-6 5.1c-.6 0-1 .4-1 1v7.8c0 .6.4 1 1 1s1-.4 1-1V8.1c0-.6-.4-1-1-1zm12 0c-.6 0-1 .4-1 1v7.8c0 .6.4 1 1 1s1-.4 1-1V8.1c0-.6-.4-1-1-1zM7.1 16c0 .6.4 1 1 1h7.8c.6 0 1-.4 1-1V8.1H7.1V16zm3-5a1 1 0 11-2 0 1 1 0 012 0zm5 0a1 1 0 11-2 0 1 1 0 012 0z"/>
+                  </svg>
+                  <p className="font-bold uppercase tracking-wider text-[10px] text-emerald-300">
+                    Premium Android App (APK):
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-300 leading-normal">
+                  Download Zoya's native Android packaging for energetic performance and clean widget support!
+                </p>
+                <button
+                  onClick={handleDownloadApk}
+                  className="w-full py-1.5 px-3 rounded-lg text-[10px] font-bold text-center block transition uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                >
+                  📥 Download Premium APK
+                </button>
               </div>
 
               {/* Multi-platform guide */}
@@ -2682,7 +3549,7 @@ export default function App() {
                   <div>
                     <h4 className="font-bold text-white text-[11px]">Windows / Mac Desktop</h4>
                     <p className="text-[10px] text-gray-400 leading-normal mt-0.5">
-                      Click the download icon (<strong className="text-white">📥</strong>) in the address bar, or click settings & select <strong className="text-white">"Install Mayra AI Assistant"</strong>.
+                      Click the download icon (<strong className="text-white">📥</strong>) in the address bar, or click settings & select <strong className="text-white">"Install Zoya AI Assistant"</strong>.
                     </p>
                   </div>
                 </div>

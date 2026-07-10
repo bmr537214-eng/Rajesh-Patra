@@ -1,7 +1,7 @@
 {
-  "short_name": "Mayra AI",
-  "name": "Mayra AI Assistant",
-  "description": "A real-time, voice-to-voice sassy AI assistant with a flirty and smart personality, powered by Gemini Live API.",
+  "short_name": "Zoya AI",
+  "name": "Zoya AI Assistant",
+  "description": "Zoya AI Assistant - A highly advanced, voice-enabled cinematic companion for Subas, powered by Gemini Live API.",
   "icons": [
     {
       "src": "/logo.jpg",
@@ -16,7 +16,7 @@
   ],
   "start_url": "/",
   "background_color": "#05050a",
-  "theme_color": "#ec4899",
+  "theme_color": "#06b6d4",
   "display": "standalone",
   "orientation": "portrait"
 }

@@ -1,6 +1,6 @@
 {
   "name": "Mayra AI Assistant",
-  "description": "A real-time, voice-to-voice sassy AI assistant with a flirty and smart personality, powered by Gemini Live API.",
-  "requestFramePermissions": ["microphone", "camera"],
+  "description": "Mayra AI Desktop Assistant - A premium, full-screen futuristic Android home screen desktop assistant with live animated avatar, widgets, windows-style taskbar, start menu, and voice companion powered by Gemini Live API.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

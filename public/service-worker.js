@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mayra-ai-v1';
+const CACHE_NAME = 'zoya-ai-v1';
 const ASSETS = [
   '/',
   '/index.html',
